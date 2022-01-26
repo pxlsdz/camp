@@ -8,11 +8,11 @@ import "camp/routers/api/v1"
 func RegisterRouter(r *gin.Engine) {
 	g := r.Group("/api/v1")
 	// 成员管理
-	g.POST("/member/create")
+	g.POST("/member/create", v1.CreateMember)
 	g.GET("/member", v1.GetMember)
-	g.GET("/member/list")
-	g.POST("/member/update")
-	g.POST("/member/delete")
+	g.GET("/member/list", v1.GetMemberList)
+	g.POST("/member/update", v1.UpdateMember)
+	g.POST("/member/delete", v1.DeleteMember)
 
 	// 登录
 

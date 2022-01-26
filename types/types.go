@@ -57,6 +57,13 @@ const (
 	Teacher UserType = 3
 )
 
+type DeleteType int
+
+const (
+	Default DeleteType = 0
+	Deleted DeleteType = 1
+)
+
 // 系统内置管理员账号
 // 账号名：JudgeAdmin 密码：JudgePassword2022
 
@@ -66,10 +73,10 @@ const (
 // 只有管理员才能添加
 
 type CreateMemberRequest struct {
-	Nickname string   // required，不小于 4 位 不超过 20 位
-	Username string   // required，只支持大小写，长度不小于 8 位 不超过 20 位
-	Password string   // required，同时包括大小写、数字，长度不少于 8 位 不超过 20 位
-	UserType UserType // required, 枚举值
+	Nickname string   `json:"nickname"  binding:"required,min=4,max=20"` // required，不小于 4 位 不超过 20 位
+	Username string   `json:"username"  binding:"required,min=8,max=20"` // required，只支持大小写，长度不小于 8 位 不超过 20 位
+	Password string   `json:"password"  binding:"required,min=8,max=20"` // required，同时包括大小写、数字，长度不少于 8 位 不超过 20 位
+	UserType UserType `json:"user_type"  binding:"required,oneof=1 2 3"` // required, 枚举值
 }
 
 type CreateMemberResponse struct {
@@ -82,7 +89,7 @@ type CreateMemberResponse struct {
 // 获取成员信息
 
 type GetMemberRequest struct {
-	UserID string
+	UserID string `json:"user_id" binding:"required"`
 }
 
 // 如果用户已删除请返回已删除状态码，不存在请返回不存在状态码
@@ -95,8 +102,8 @@ type GetMemberResponse struct {
 // 批量获取成员信息
 
 type GetMemberListRequest struct {
-	Offset int
-	Limit  int
+	Offset int `json:"offset"`
+	Limit  int `json:"limit"`
 }
 
 type GetMemberListResponse struct {
@@ -109,8 +116,8 @@ type GetMemberListResponse struct {
 // 更新成员信息
 
 type UpdateMemberRequest struct {
-	UserID   string
-	Nickname string
+	UserID   string `json:"user_id" binding:"required"`
+	Nickname string `json:"nickname"  binding:"required,min=4,max=20"`
 }
 
 type UpdateMemberResponse struct {
@@ -121,7 +128,7 @@ type UpdateMemberResponse struct {
 // 成员删除后，该成员不能够被登录且不应该不可见，ID 不可复用
 
 type DeleteMemberRequest struct {
-	UserID string
+	UserID string `json:"user_id" binding:"required"`
 }
 
 type DeleteMemberResponse struct {
