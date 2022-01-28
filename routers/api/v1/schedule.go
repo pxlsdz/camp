@@ -20,13 +20,7 @@ type scheduleParameter struct {
 	vis4course     *map[string]bool
 }
 
-//func scheduleCore(node string, teacher2course *map[string][]string, course2teacher *map[string][]string,
-//	plan4teacher *map[string]string, plan4course *map[string]string, mark int){
-//
-//}
-func scheduleCore(x string, param *scheduleParameter, mark int) int {
-	//fmt.Println(*param.plan4course)
-	//fmt.Println(len((*param.plan4teacher)[x]))
+func hungry(x string, param *scheduleParameter, mark int) int {
 	if mark == 0 {
 		for i := 0; i < len((*param.teacher2course)[x]); i++ {
 			course := (*param.teacher2course)[x][i]
@@ -37,7 +31,7 @@ func scheduleCore(x string, param *scheduleParameter, mark int) int {
 					(*param.plan4course)[course] = x
 					// fmt.Println("#1 Change", x, course)
 					return 1
-				} else if scheduleCore((*param.plan4course)[course], param, 0) == 1 {
+				} else if hungry((*param.plan4course)[course], param, 0) == 1 {
 					(*param.plan4teacher)[x] = course
 					(*param.plan4course)[course] = x
 					// fmt.Println("#1 Change", x, course)
@@ -55,7 +49,7 @@ func scheduleCore(x string, param *scheduleParameter, mark int) int {
 					(*param.plan4course)[x] = teacher
 					// fmt.Println("#2 Change", teacher, x)
 					return 1
-				} else if scheduleCore((*param.plan4teacher)[teacher], param, 1) == 1 {
+				} else if hungry((*param.plan4teacher)[teacher], param, 1) == 1 {
 					(*param.plan4teacher)[teacher] = x
 					(*param.plan4course)[x] = teacher
 					// fmt.Println("#2 Change", teacher, x)
@@ -67,24 +61,14 @@ func scheduleCore(x string, param *scheduleParameter, mark int) int {
 	} else {
 		fmt.Println("unknown error")
 	}
-	//fmt.Println((*param.teacher2course)[x])
+
 	return 0
 }
-func ScheduleCourse(c *gin.Context) {
-	//TODO:登录验证和权限认证
 
-	var json types.ScheduleCourseRequest
-
-	if err := c.ShouldBindJSON(&json); err != nil {
-		c.JSON(http.StatusBadRequest, types.ScheduleCourseResponse{Code: types.ParamInvalid})
-	}
-	var teacherNumber = len(json.TeacherCourseRelationShip)
-	// fmt.Println(teacherNumber)
-	// teacher2course := json.TeacherCourseRelationShip
+func ScheduleCore(TeacherCourseRelationShip *map[string][]string) (int, map[string]string) {
 	course2teacher := make(map[string][]string)
-
 	teacherList := make([]string, 0)
-	for k, v := range json.TeacherCourseRelationShip {
+	for k, v := range *TeacherCourseRelationShip {
 		for i := 0; i < len(v); i++ {
 			course2teacher[v[i]] = append(course2teacher[v[i]], k)
 		}
@@ -99,36 +83,38 @@ func ScheduleCourse(c *gin.Context) {
 	sum := 0
 	plan4teacher := make(map[string]string, len(teacherList))
 	plan4course := make(map[string]string, len(courseList))
-	for i := 0; i < teacherNumber; i++ {
-		// fmt.Println(teacherList[i])
+	for i := 0; i < len(teacherList); i++ {
 
 		vis4teacher := make(map[string]bool, len(teacherList))
 		vis4course := make(map[string]bool, len(courseList))
-		//fmt.Println("vis4teacher=", vis4teacher)
-		//fmt.Println("vis4course=", vis4course)
 
-		sum += scheduleCore(teacherList[i], &scheduleParameter{
-			teacher2course: &json.TeacherCourseRelationShip,
+		sum += hungry(teacherList[i], &scheduleParameter{
+			teacher2course: TeacherCourseRelationShip,
 			course2teacher: &course2teacher,
 			plan4teacher:   &plan4teacher,
 			plan4course:    &plan4course,
 			vis4teacher:    &vis4teacher,
 			vis4course:     &vis4course,
 		}, 0)
-
-		// fmt.Println("plan4teacher", plan4teacher)
-		// fmt.Println("plan4course", plan4course)
 	}
-	// fmt.Println("sum=", sum)
-	// plan4course := make(map[string]string)
+	return sum, plan4teacher
+}
+func ScheduleCourse(c *gin.Context) {
+	//TODO:登录验证和权限认证
 
+	var json types.ScheduleCourseRequest
+
+	if err := c.ShouldBindJSON(&json); err != nil {
+		c.JSON(http.StatusBadRequest, types.ScheduleCourseResponse{Code: types.ParamInvalid})
+	}
+	_, ret := ScheduleCore(&json.TeacherCourseRelationShip)
 	c.JSON(http.StatusOK, types.ScheduleCourseResponse{
 		Code: types.OK,
-		Data: plan4teacher,
+		Data: ret,
 	})
 }
-func readRequest() map[string][]string {
-	file, err := os.Open("testdata/input6.txt")
+func ReadRequest(path string) map[string][]string {
+	file, err := os.Open(path)
 	if err != nil {
 		fmt.Printf("打开文件出错：%v\n", err)
 	}
@@ -160,5 +146,6 @@ func readRequest() map[string][]string {
 }
 
 func ScheduleCourseTest(c *gin.Context) {
-	c.JSON(http.StatusOK, types.ScheduleCourseRequest{TeacherCourseRelationShip: readRequest()})
+	c.JSON(http.StatusOK,
+		types.ScheduleCourseRequest{TeacherCourseRelationShip: ReadRequest("testdata/input6.txt")})
 }
