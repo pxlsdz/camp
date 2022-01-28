@@ -10,7 +10,7 @@ import (
 
 func main() {
 	initConfig()
-
+	// Read()
 	// 连接mysql
 	if err := mysql.Init(); err != nil {
 		panic(err)
@@ -22,7 +22,7 @@ func main() {
 	routers.RegisterRouter(r)
 	// 2.监听端口，默认在8080
 	// Run("里面不指定端口号默认为8080")
-	r.Run(":8000")
+	r.Run(":12333")
 }
 
 // viper工具读取配置文件

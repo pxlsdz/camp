@@ -1,7 +1,7 @@
 
 [mysql]
-    host = "180.184.74.13"
+    host = "127.0.0.1"
     port = "3306"
     username = "root"
-    password = "bytedancecamp"
+    password = "a12345"
     database = "camp"
