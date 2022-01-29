@@ -15,6 +15,7 @@ func AuthMiddleWare() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 获取客户端cookie并校验
 		if cookie, err := c.Cookie("camp-session"); err == nil && cookie != "" {
+			fmt.Printf(cookie)
 			c.Next()
 			return
 		}
@@ -41,16 +42,20 @@ func Login(c *gin.Context) {
 	db := mysql.GetDb()
 	var member models.Member
 	err := db.Where("username = ?", username).First(&member)
-	//err := db.Select(&member, "select username from member where username='guoguo'")
-	//result := db.Select("select username from member where username=?", username)
 	if err.Error != nil || member.Password != password {
 		c.JSON(http.StatusOK, types.LoginResponse{Code: types.WrongPassword})
 		return
 	}
 
 	// 登录成功，设置cookie
-	c.SetCookie("camp-session", strconv.FormatInt(member.ID, 10), 120, "/",
-		"127.0.0.1", false, true)
+	//maxAge:x
+	//	x<0,立即删除cookie
+	//	x=0,无限时间
+	//  x>0,x秒之后过期
+	// domain：域名，本地调试，127.0.0.0;正式,180.184.74.13
+
+	c.SetCookie("camp-session", strconv.FormatInt(member.ID, 10), 0, "/",
+		"180.184.74.13", false, true)
 
 	c.JSON(http.StatusOK, types.LoginResponse{
 		Code: types.OK,
@@ -63,7 +68,7 @@ func Login(c *gin.Context) {
 func Logout(c *gin.Context) {
 	//建立同名cookie进行覆盖
 	c.SetCookie("camp-session", "value_cookie", -1, "/",
-		"127.0.0.1", false, true)
+		"180.184.74.13", false, true)
 	// 返回信息
 	c.JSON(http.StatusOK, types.LogoutResponse{
 		Code: types.OK,
