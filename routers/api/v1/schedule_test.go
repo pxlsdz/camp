@@ -38,7 +38,7 @@ func ReadResult(path string) int {
 	defer file.Close()
 	// bufio.NewReader(rd io.Reader) *Reader
 	reader := bufio.NewReader(file)
-	// 读取n m
+	// 读取答案
 	line, err := reader.ReadString('\n') // 读到一个换行符就结束
 	ans := strings.Split(line, "\n")[0]
 	res, _ := strconv.Atoi(ans)
