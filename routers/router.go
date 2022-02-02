@@ -21,8 +21,8 @@ func RegisterRouter(r *gin.Engine) {
 		g.GET("/auth/whoami", v1.AuthMiddleWare(), v1.Whoami)
 
 	// 排课
-	g.POST("/course/create")
-	g.GET("/course/get")
+	g.POST("/course/create", v1.CreateCourse)
+	g.GET("/course/get", v1.GetCourse)
 
 	g.POST("/teacher/bind_course", v1.BindCourse)
 	g.POST("/teacher/unbind_course", v1.UnbindCourse)
@@ -33,6 +33,6 @@ func RegisterRouter(r *gin.Engine) {
 
 	// 抢课
 	g.POST("/student/book_course")
-	g.GET("/student/course")
+	g.GET("/student/course", v1.GetStudentCourse)
 
 }
