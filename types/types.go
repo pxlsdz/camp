@@ -181,8 +181,8 @@ type WhoAmIResponse struct {
 // 创建课程
 // Method: Post
 type CreateCourseRequest struct {
-	Name string
-	Cap  int
+	Name string `json:"name" binding:"required"`
+	Cap  int    `json:"cap" binding:"required"`
 }
 
 type CreateCourseResponse struct {
@@ -195,7 +195,7 @@ type CreateCourseResponse struct {
 // 获取课程
 // Method: Get
 type GetCourseRequest struct {
-	CourseID string
+	CourseID string `json:"course_id" binding:"required"`
 }
 
 type GetCourseResponse struct {
@@ -263,7 +263,7 @@ type BookCourseResponse struct {
 }
 
 type GetStudentCourseRequest struct {
-	StudentID string
+	StudentID string `json:"student_id"`
 }
 
 type GetStudentCourseResponse struct {
