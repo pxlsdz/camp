@@ -208,8 +208,8 @@ type GetCourseResponse struct {
 // 注：这里的 teacherID 不需要做已落库校验
 // 一个老师可以绑定多个课程 , 不过，一个课程只能绑定在一个老师下面
 type BindCourseRequest struct {
-	CourseID  string
-	TeacherID string
+	CourseID  string `json:"course_id" binding:"required"`  //必填
+	TeacherID string `json:"teacher_id" binding:"required"` //必填
 }
 
 type BindCourseResponse struct {
@@ -219,8 +219,8 @@ type BindCourseResponse struct {
 // 老师解绑课程
 // Method： Post
 type UnbindCourseRequest struct {
-	CourseID  string
-	TeacherID string
+	CourseID  string `json:"course_id" binding:"required"`  //必填
+	TeacherID string `json:"teacher_id" binding:"required"` //必填
 }
 
 type UnbindCourseResponse struct {
@@ -230,7 +230,7 @@ type UnbindCourseResponse struct {
 // 获取老师下所有课程
 // Method：Get
 type GetTeacherCourseRequest struct {
-	TeacherID string
+	TeacherID string `json:"teacher_id" binding:"required"` //必填
 }
 
 type GetTeacherCourseResponse struct {
