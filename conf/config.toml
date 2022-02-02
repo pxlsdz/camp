@@ -1,7 +1,11 @@
-
 [mysql]
-    host = "180.184.74.13"
-    port = "3306"
+    addr = "180.184.74.13:3306"
     username = "root"
     password = "bytedancecamp"
     database = "camp"
+[redis]
+    addr = "127.0.0.1:6379"
+[rabbitMQ]
+    addr = "127.0.0.1:5672"
+    username = "guest"
+    password = "guest"

@@ -27,6 +27,11 @@ const (
 
 	UnknownError ErrNo = 255 // 未知错误
 )
+const (
+	StudentKey          = "s%d"
+	CourseKey           = "c%d"
+	StudentHasCourseKey = "%sh%s"
+)
 
 type ResponseMeta struct {
 	Code ErrNo
@@ -252,8 +257,8 @@ type ScheduleCourseResponse struct {
 }
 
 type BookCourseRequest struct {
-	StudentID string
-	CourseID  string
+	StudentID string `json:"student_id"  binding:"required"`
+	CourseID  string `json:"course_id"  binding:"required"`
 }
 
 // 课程已满返回 CourseNotAvailable
