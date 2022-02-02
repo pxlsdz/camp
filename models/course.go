@@ -6,7 +6,7 @@ type Course struct {
 	ID        int64
 	Name      string
 	Cap       int
-	TeacherId int64
+	TeacherID int64
 	Deleted   types.DeleteType
 }
 

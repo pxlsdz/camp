@@ -7,7 +7,6 @@ import "camp/routers/api/v1"
 
 func RegisterRouter(r *gin.Engine) {
 	g := r.Group("/api/v1")
-	{
 		// 成员管理
 		g.POST("/member/create", v1.CreateMember)
 		g.GET("/member", v1.GetMember)
