@@ -1,11 +1,13 @@
 package rabbitmq
 
 import (
+	"camp/infrastructure/stores/mysql"
 	"camp/models"
 	"encoding/json"
 	"fmt"
 	"github.com/spf13/viper"
 	"github.com/streadway/amqp"
+	"gorm.io/gorm"
 	"log"
 	"sync"
 )
@@ -157,25 +159,22 @@ func (r *RabbitMQ) ConsumeSimple() {
 	//启用协程处理消息
 	go func() {
 		for d := range msgs {
-			// 消息逻辑处理，可以自行设计逻辑
+
 			log.Printf("Received a message: %s", d.Body)
-			message := &models.Message{}
-			err := json.Unmarshal([]byte(d.Body), message)
+			studentCourse := &models.StudentCourse{}
+			err := json.Unmarshal([]byte(d.Body), studentCourse)
 			if err != nil {
 				fmt.Println(err)
 			}
-			// 插入订单
-			fmt.Println(message.StudentID, message.CourseId)
+			db := mysql.GetDb()
 
-			if err != nil {
-				fmt.Println(err)
-			}
+			// 创建选课记录
+			db.Create(&studentCourse)
 
-			// 扣除商品数量
-			// err = productService.SubNumberOne(message.ProductID)
-			if err != nil {
-				fmt.Println(err)
-			}
+			// 扣除课程数量
+			course := models.Course{ID: studentCourse.CourseID}
+			db.Model(&course).UpdateColumn("cap", gorm.Expr("cap - ?", 1))
+
 			//如果为true表示确认所有未确认的消息，
 			//为false表示确认当前消息
 			d.Ack(false)

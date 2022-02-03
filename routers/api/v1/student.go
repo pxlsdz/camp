@@ -2,6 +2,7 @@ package v1
 
 import (
 	"camp/infrastructure/mq/rabbitmq"
+	"camp/infrastructure/stores/mysql"
 	"camp/infrastructure/stores/redis"
 	"camp/models"
 	"camp/types"
@@ -12,6 +13,44 @@ import (
 	"net/http"
 	"strconv"
 )
+
+func GetStudentCourse(c *gin.Context) {
+	//TODO: 登陆验证和权限验证
+
+	//参数校验
+	var jsonRequest types.GetStudentCourseRequest
+	if err := c.ShouldBindJSON(&jsonRequest); err != nil {
+		c.JSON(http.StatusBadRequest, types.GetStudentCourseResponse{Code: types.ParamInvalid})
+		return
+	}
+
+	//这里用student_courses or studentCourses
+	var studentCourses []models.StudentCourse
+	db := mysql.GetDb()
+	if err := db.Where("student_id = ?", jsonRequest.StudentID).Find(&studentCourses).Error; err != nil {
+		c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.UnknownError})
+		return
+	}
+
+	//表的关联有没有更好的方法？
+	var courseList []types.TCourse
+	for _, studentCourse := range studentCourses {
+		var course models.Course
+		//课程没有删除的逻辑，是否还需要判断课程是否存在？
+		_ = db.Find(&course, studentCourse.CourseID)
+		courseList = append(courseList, types.TCourse{
+			CourseID:  strconv.FormatInt(course.ID, 10),
+			Name:      course.Name,
+			TeacherID: strconv.FormatInt(course.TeacherID, 10),
+		})
+	}
+
+	c.JSON(http.StatusOK, types.GetStudentCourseResponse{
+		Code: types.OK,
+		Data: struct{ CourseList []types.TCourse }{CourseList: courseList},
+	})
+
+}
 
 func BookCourse(c *gin.Context) {
 	//TODO:登录验证和权限认证
@@ -26,45 +65,45 @@ func BookCourse(c *gin.Context) {
 
 	ctx := context.Background()
 	cli := redis.GetClient()
-
+	// redis lua脚本实现检验是否已经有该课和课程数量是否足够
+	// 缓存设计待讨论
 	courseId, _ := strconv.ParseInt(requestJson.CourseID, 10, 64)
 	res, err := cli.EvalSha(ctx, redis.LuaHash, []string{fmt.Sprintf(types.StudentHasCourseKey, requestJson.StudentID, requestJson.CourseID), fmt.Sprintf(types.CourseKey, courseId)}).Result()
-	if err != nil || res == -1 {
-		c.JSON(http.StatusBadRequest, types.BookCourseResponse{Code: types.UnknownError})
-		return
-	}
-	if res == 3 {
-		c.JSON(http.StatusBadRequest, types.BookCourseResponse{Code: types.StudentHasCourse})
-		return
-	}
-	if res == 2 {
-		c.JSON(http.StatusBadRequest, types.BookCourseResponse{Code: types.CourseNotExisted})
-		return
-	}
-	if res == 0 {
-		c.JSON(http.StatusBadRequest, types.BookCourseResponse{Code: types.CourseNotAvailable})
-		return
-	}
 
-	// 消息队列下单
+	if err != nil || res == int64(-1) {
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
+		return
+	}
+	if res == int64(3) {
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.StudentHasCourse})
+		return
+	}
+	if res == int64(2) {
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.CourseNotExisted})
+		return
+	}
+	if res == int64(0) {
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.CourseNotAvailable})
+		return
+	}
+	// 消息队列减少课程数据库的库存以及创建数据库表
 	//创建消息体
 	studentID, _ := strconv.ParseInt(requestJson.StudentID, 10, 64)
-	message := models.Message{
+	studentCourse := models.StudentCourse{
 		StudentID: studentID,
-		CourseId:  courseId,
+		CourseID:  courseId,
 	}
 	//类型转化
-	byteMessage, _ := json.Marshal(message)
+	byteMessage, _ := json.Marshal(studentCourse)
 	//if err != nil {
-	//	//p.Ctx.Application().Logger().Debug(err)
+	//
 	//}
 	rabbitMQ := rabbitmq.GetRabbitMQ()
 	err = rabbitMQ.PublishSimple(string(byteMessage))
-	if err != nil {
-		//p.Ctx.Application().Logger().Debug(err)
-	}
+	//if err != nil {
+	//}
 
-	c.JSON(http.StatusBadRequest, types.BookCourseResponse{Code: types.OK})
+	c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.OK})
 
 	return
 
@@ -98,52 +137,5 @@ func BookCourse(c *gin.Context) {
 	//if stock < 0 {
 	//	c.JSON(http.StatusBadRequest, types.BookCourseResponse{Code: types.CourseNotAvailable})
 	//}
-
-}
-
-import (
-	"camp/infrastructure/stores/mysql"
-	"camp/models"
-	"camp/types"
-	"github.com/gin-gonic/gin"
-	"net/http"
-	"strconv"
-)
-
-func GetStudentCourse(c *gin.Context) {
-	//TODO: 登陆验证和权限验证
-
-	//参数校验
-	var json types.GetStudentCourseRequest
-	if err := c.ShouldBindJSON(&json); err != nil {
-		c.JSON(http.StatusBadRequest, types.GetStudentCourseResponse{Code: types.ParamInvalid})
-		return
-	}
-
-	//这里用student_courses or studentCourses
-	var studentCourses []models.StudentCourse
-	db := mysql.GetDb()
-	if err := db.Where("student_id = ?", json.StudentID).Find(&studentCourses).Error; err != nil {
-		c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.UnknownError})
-		return
-	}
-
-	//表的关联有没有更好的方法？
-	var courseList []types.TCourse
-	for _, studentCourse := range studentCourses {
-		var course models.Course
-		//课程没有删除的逻辑，是否还需要判断课程是否存在？
-		_ = db.Find(&course, studentCourse.CourseID)
-		courseList = append(courseList, types.TCourse{
-			CourseID:  strconv.FormatInt(course.ID, 10),
-			Name:      course.Name,
-			TeacherID: strconv.FormatInt(course.TeacherID, 10),
-		})
-	}
-
-	c.JSON(http.StatusOK, types.GetStudentCourseResponse{
-		Code: types.OK,
-		Data: struct{ CourseList []types.TCourse }{CourseList: courseList},
-	})
 
 }
