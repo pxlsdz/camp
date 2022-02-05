@@ -13,10 +13,10 @@ import (
 
 type scheduleParameter struct {
 	teacher2course *map[string][]string
-	course2teacher *map[string][]string
-	plan4teacher   *map[string]string
-	plan4course    *map[string]string
-	vis4course     *map[string]bool
+	// course2teacher *map[string][]string
+	plan4teacher *map[string]string
+	plan4course  *map[string]string
+	vis4course   *map[string]bool
 }
 
 func hungry(x string, param *scheduleParameter) int {
@@ -39,30 +39,30 @@ func hungry(x string, param *scheduleParameter) int {
 }
 
 func ScheduleCore(TeacherCourseRelationShip *map[string][]string) (int, map[string]string) {
-	course2teacher := make(map[string][]string)
+	// course2teacher := make(map[string][]string)
 	teacherList := make([]string, 0)
-	for k, v := range *TeacherCourseRelationShip {
-		for i := 0; i < len(v); i++ {
-			course2teacher[v[i]] = append(course2teacher[v[i]], k)
-		}
+	for k, _ := range *TeacherCourseRelationShip {
+		//for i := 0; i < len(v); i++ {
+		//	course2teacher[v[i]] = append(course2teacher[v[i]], k)
+		//}
 		teacherList = append(teacherList, k)
 	}
 
-	courseList := make([]string, 0)
-	for k, _ := range course2teacher {
-		courseList = append(courseList, k)
-	}
+	// courseList := make([]string, 0)
+	//for k, _ := range course2teacher {
+	//	courseList = append(courseList, k)
+	//}
 	sum := 0
-	plan4teacher := make(map[string]string, len(teacherList))
-	plan4course := make(map[string]string, len(courseList))
+	plan4teacher := make(map[string]string)
+	plan4course := make(map[string]string)
 	for i := 0; i < len(teacherList); i++ {
-		vis4course := make(map[string]bool, len(courseList))
+		vis4course := make(map[string]bool)
 		sum += hungry(teacherList[i], &scheduleParameter{
 			teacher2course: TeacherCourseRelationShip,
-			course2teacher: &course2teacher,
-			plan4teacher:   &plan4teacher,
-			plan4course:    &plan4course,
-			vis4course:     &vis4course,
+			// course2teacher: &course2teacher,
+			plan4teacher: &plan4teacher,
+			plan4course:  &plan4course,
+			vis4course:   &vis4course,
 		})
 	}
 	return sum, plan4teacher
