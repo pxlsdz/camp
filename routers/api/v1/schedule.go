@@ -81,7 +81,7 @@ func ScheduleCourse(c *gin.Context) {
 		Data: ret,
 	})
 
-	defer c.JSON(http.StatusOK, types.ScheduleCourseResponse{Code: types.UnknownError})
+	// defer c.JSON(http.StatusOK, types.ScheduleCourseResponse{Code: types.UnknownError})
 }
 func ReadRequest(path string) map[string][]string {
 	file, err := os.Open(path)
