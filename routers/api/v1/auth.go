@@ -5,17 +5,23 @@ import (
 	"camp/models"
 	"camp/types"
 	"fmt"
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
 )
 
-func AuthMiddleWare() gin.HandlerFunc {
+type User struct {
+	UserId   int64
+	UserType types.UserType
+}
 
+func AuthMiddleWare() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 获取客户端cookie并校验
-		if cookie, err := c.Cookie("camp-session"); err == nil && cookie != "" {
-			fmt.Printf(cookie)
+		session := sessions.Default(c)
+		user := session.Get("camp-session")
+		if value, ok := user.(User); ok == true {
+			fmt.Println(value.UserId)
 			c.Next()
 			return
 		}
@@ -30,14 +36,14 @@ func AuthMiddleWare() gin.HandlerFunc {
 func Login(c *gin.Context) {
 
 	fmt.Println("login")
-	var json types.LoginRequest
-	if err := c.ShouldBindJSON(&json); err != nil {
+	var jsonLogin types.LoginRequest
+	if err := c.ShouldBindJSON(&jsonLogin); err != nil {
 		c.JSON(http.StatusBadRequest, "json解析失败")
 		return
 	}
 
-	username := json.Username
-	password := json.Password
+	username := jsonLogin.Username
+	password := jsonLogin.Password
 
 	db := mysql.GetDb()
 	var member models.Member
@@ -46,16 +52,21 @@ func Login(c *gin.Context) {
 		c.JSON(http.StatusOK, types.LoginResponse{Code: types.WrongPassword})
 		return
 	}
-
-	// 登录成功，设置cookie
-	//maxAge:x
-	//	x<0,立即删除cookie
-	//	x=0,无限时间
-	//  x>0,x秒之后过期
-	// domain：域名，本地调试，127.0.0.0;正式,180.184.74.13
-
-	c.SetCookie("camp-session", strconv.FormatInt(member.ID, 10), 0, "/",
-		"180.184.74.13", false, true)
+	// 创建session
+	session := sessions.Default(c)
+	//注意类型的转换
+	loginUser := User{UserId: member.ID, UserType: types.UserType(int(member.UserType))}
+	session.Set("camp-session", loginUser)
+	// 设置session的参数
+	options := sessions.Options{}
+	options.Path = "/"
+	// domain：域名，本地调试，127.0.0.1;正式,180.184.74.13
+	options.Domain = "180.184.74.13"
+	//options.Domain = "127.0.0.1"
+	//maxAge: x<0,立即删除cookie; x=0,无限时间; x>0,x秒之后过期
+	options.MaxAge = 0
+	session.Options(options)
+	session.Save()
 
 	c.JSON(http.StatusOK, types.LoginResponse{
 		Code: types.OK,
@@ -63,12 +74,25 @@ func Login(c *gin.Context) {
 			UserID string
 		}{strconv.FormatInt(member.ID, 10)},
 	})
+	return
 }
 
 func Logout(c *gin.Context) {
 	//建立同名cookie进行覆盖
-	c.SetCookie("camp-session", "value_cookie", -1, "/",
-		"180.184.74.13", false, true)
+	session := sessions.Default(c)
+	user := session.Get("camp-session")
+	session.Set("camp-session", user)
+	// 设置session的参数
+	options := sessions.Options{}
+	options.Path = "/"
+	// domain：域名，本地调试，127.0.0.1;正式,180.184.74.13
+	options.Domain = "180.184.74.13"
+	//options.Domain = "127.0.0.1"
+	//maxAge: x<0,立即删除cookie; x=0,无限时间; x>0,x秒之后过期
+	options.MaxAge = -1
+	session.Options(options)
+	session.Save()
+
 	// 返回信息
 	c.JSON(http.StatusOK, types.LogoutResponse{
 		Code: types.OK,
@@ -76,19 +100,28 @@ func Logout(c *gin.Context) {
 }
 
 func Whoami(c *gin.Context) {
+	session := sessions.Default(c)
+	user := session.Get("camp-session")
+	if value, ok := user.(User); ok == true {
+		sessionUid := value.UserId
+		db := mysql.GetDb()
+		var member models.Member
+		db.Where("id = ?", sessionUid).First(&member)
+		c.JSON(http.StatusOK, types.WhoAmIResponse{
+			Code: types.OK,
+			Data: types.TMember{
+				UserID:   strconv.FormatInt(member.ID, 10),
+				Nickname: member.Nickname,
+				Username: member.Username,
+				UserType: member.UserType,
+			},
+		})
+		return
+	}
 
-	cookie_uid, _ := c.Cookie("camp-session")
-	db := mysql.GetDb()
-	var member models.Member
-
-	db.Where("id = ?", cookie_uid).First(&member)
-	c.JSON(http.StatusOK, types.WhoAmIResponse{
-		Code: types.OK,
-		Data: types.TMember{
-			UserID:   strconv.FormatInt(member.ID, 10),
-			Nickname: member.Nickname,
-			Username: member.Username,
-			UserType: member.UserType,
-		},
-	})
+	// 返回错误,未授权
+	c.JSON(http.StatusUnauthorized, gin.H{"error": "unAuthorized"})
+	// 若验证不通过，不再调用后续的函数处理
+	c.Abort()
+	return
 }
