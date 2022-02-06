@@ -6,9 +6,13 @@ import (
 	"camp/infrastructure/stores/redis"
 	"camp/models"
 	"camp/routers"
+	"camp/routers/api/v1"
 	"camp/types"
 	"context"
+	"encoding/gob"
 	"fmt"
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 )
@@ -32,8 +36,13 @@ func main() {
 	simple := rabbitmq.NewRabbitMQSimple("miaosha")
 	simple.ConsumeSimple()
 
+	//把user这个接头体注册进来，后面跨路由才可以获取到user数据
+	gob.Register(v1.User{})
 	// 1.创建路由
 	r := gin.Default()
+	store := cookie.NewStore([]byte("secret"))
+	//路由上加入session中间件
+	r.Use(sessions.Sessions("camp-session", store))
 
 	routers.RegisterRouter(r)
 	// 2.监听端口，默认在8080
