@@ -18,7 +18,7 @@ func RegisterRouter(r *gin.Engine) {
 	member := r.Group("/api/v1/member")
 
 	member.POST("/create", middleware.AdminAuth(), v1.CreateMember)
-	member.GET("/", v1.GetMember)
+	member.GET("", v1.GetMember)
 	member.GET("/list", v1.GetMemberList)
 	member.POST("/update", v1.UpdateMember)
 	member.POST("/delete", v1.DeleteMember)

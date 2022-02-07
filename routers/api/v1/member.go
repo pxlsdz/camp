@@ -65,7 +65,7 @@ func GetMember(c *gin.Context) {
 
 	id, err := strconv.ParseInt(json.UserID, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusOK, types.GetMemberResponse{Code: types.ParamInvalid})
+		c.JSON(http.StatusBadRequest, types.GetMemberResponse{Code: types.ParamInvalid})
 		return
 	}
 
@@ -102,7 +102,11 @@ func UpdateMember(c *gin.Context) {
 		return
 	}
 
-	id, _ := strconv.ParseInt(json.UserID, 10, 64)
+	id, err := strconv.ParseInt(json.UserID, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, types.UpdateMemberResponse{Code: types.ParamInvalid})
+		return
+	}
 
 	var member models.Member
 	db := mysql.GetDb()
@@ -120,6 +124,7 @@ func UpdateMember(c *gin.Context) {
 
 	if err := db.Model(&member).Update("nickname", json.Nickname).Error; err != nil {
 		c.JSON(http.StatusOK, types.UpdateMemberResponse{Code: types.UnknownError})
+		return
 	}
 
 	c.JSON(http.StatusOK, types.UpdateMemberResponse{Code: types.OK})
@@ -134,7 +139,11 @@ func DeleteMember(c *gin.Context) {
 		return
 	}
 
-	id, _ := strconv.ParseInt(json.UserID, 10, 64)
+	id, err := strconv.ParseInt(json.UserID, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, types.DeleteMemberResponse{Code: types.ParamInvalid})
+		return
+	}
 
 	var member models.Member
 	db := mysql.GetDb()
@@ -145,8 +154,15 @@ func DeleteMember(c *gin.Context) {
 		return
 	}
 
+	// 判断用户是否已经删除
+	if member.Deleted == types.Deleted {
+		c.JSON(http.StatusOK, types.GetMemberResponse{Code: types.UserHasDeleted})
+		return
+	}
+
 	if err := db.Model(&member).Update("deleted", types.Deleted).Error; err != nil {
 		c.JSON(http.StatusOK, types.DeleteMemberResponse{Code: types.UnknownError})
+		return
 	}
 
 	c.JSON(http.StatusOK, types.DeleteMemberResponse{Code: types.OK})
@@ -165,6 +181,7 @@ func GetMemberList(c *gin.Context) {
 	db := mysql.GetDb()
 	if err := db.Where("deleted = ?", types.Default).Offset(json.Offset).Limit(json.Limit).Find(&members).Error; err != nil {
 		c.JSON(http.StatusOK, types.GetMemberListResponse{Code: types.UnknownError})
+		return
 	}
 	var memberList []types.TMember
 	for _, member := range members {
