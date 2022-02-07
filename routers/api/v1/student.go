@@ -52,9 +52,9 @@ func GetStudentCourse(c *gin.Context) {
 
 }
 
+var localCapOverMap map[int64]bool
+
 func BookCourse(c *gin.Context) {
-	//TODO:登录验证和权限认证
-	//TODO:判断学生id和登录id怎么区分
 
 	// 参数校验
 	var requestJson types.BookCourseRequest
@@ -63,17 +63,40 @@ func BookCourse(c *gin.Context) {
 		return
 	}
 
+	courseId, err := strconv.ParseInt(requestJson.CourseID, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, types.BookCourseResponse{Code: types.ParamInvalid})
+		return
+	}
+
+	studentID, err := strconv.ParseInt(requestJson.StudentID, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, types.BookCourseResponse{Code: types.ParamInvalid})
+		return
+	}
+
+	_, ok := localCapOverMap[courseId]
+	if ok {
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.CourseNotAvailable})
+		return
+	}
+
 	ctx := context.Background()
 	cli := redis.GetClient()
-	// redis lua脚本实现检验是否已经有该课和课程数量是否足够
+	// redis lua脚本实现检验该学生是否已经有该课和课程数量是否足够
 	// 缓存设计待讨论
-	courseId, _ := strconv.ParseInt(requestJson.CourseID, 10, 64)
-	res, err := cli.EvalSha(ctx, redis.LuaHash, []string{fmt.Sprintf(types.StudentHasCourseKey, requestJson.StudentID, requestJson.CourseID), fmt.Sprintf(types.CourseKey, courseId)}).Result()
+	// 学生是否存在与商品是否存在 是否和减少库存是一个原子性质操作？
+	res, err := cli.EvalSha(ctx, redis.LuaHash, []string{fmt.Sprintf(types.StudentHasCourseKey, studentID, courseId), fmt.Sprintf(types.CourseKey, courseId), fmt.Sprintf(types.StudentKey, studentID)}).Result()
 
 	if err != nil || res == int64(-1) {
 		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
 		return
 	}
+	if res == int64(4) {
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.StudentNotExisted})
+		return
+	}
+
 	if res == int64(3) {
 		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.StudentHasCourse})
 		return
@@ -84,11 +107,12 @@ func BookCourse(c *gin.Context) {
 	}
 	if res == int64(0) {
 		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.CourseNotAvailable})
+		localCapOverMap[courseId] = true
 		return
 	}
 	// 消息队列减少课程数据库的库存以及创建数据库表
 	//创建消息体
-	studentID, _ := strconv.ParseInt(requestJson.StudentID, 10, 64)
+
 	studentCourse := models.StudentCourse{
 		StudentID: studentID,
 		CourseID:  courseId,

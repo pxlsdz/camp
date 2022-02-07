@@ -4,41 +4,17 @@ import (
 	"camp/infrastructure/stores/mysql"
 	"camp/models"
 	"camp/types"
-	"fmt"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
 )
 
-type User struct {
-	UserId   int64
-	UserType types.UserType
-}
-
-func AuthMiddleWare() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		session := sessions.Default(c)
-		user := session.Get("camp-session")
-		if value, ok := user.(User); ok == true {
-			fmt.Println(value.UserId)
-			c.Next()
-			return
-		}
-		// 返回错误,未授权
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unAuthorized"})
-		// 若验证不通过，不再调用后续的函数处理
-		c.Abort()
-		return
-	}
-}
-
 func Login(c *gin.Context) {
 
-	fmt.Println("login")
 	var jsonLogin types.LoginRequest
 	if err := c.ShouldBindJSON(&jsonLogin); err != nil {
-		c.JSON(http.StatusBadRequest, "json解析失败")
+		c.JSON(http.StatusBadRequest, types.LoginResponse{Code: types.ParamInvalid})
 		return
 	}
 
@@ -47,6 +23,9 @@ func Login(c *gin.Context) {
 
 	db := mysql.GetDb()
 	var member models.Member
+
+	// TODO：用户可能已经被删除,先查出来，返回用户已经删除错误码
+	// TODO: First 在gorm中sql语句会加入order by id 建议写法：db.Limit(1).Where("username = ?", json.Username).Find(&member)
 	err := db.Where("username = ?", username).First(&member)
 	if err.Error != nil || member.Password != password {
 		c.JSON(http.StatusOK, types.LoginResponse{Code: types.WrongPassword})
@@ -55,7 +34,7 @@ func Login(c *gin.Context) {
 	// 创建session
 	session := sessions.Default(c)
 	//注意类型的转换
-	loginUser := User{UserId: member.ID, UserType: types.UserType(int(member.UserType))}
+	loginUser := types.User{UserId: member.ID, UserType: types.UserType(int(member.UserType))}
 	session.Set("camp-session", loginUser)
 	// 设置session的参数
 	options := sessions.Options{}
@@ -94,18 +73,17 @@ func Logout(c *gin.Context) {
 	session.Save()
 
 	// 返回信息
-	c.JSON(http.StatusOK, types.LogoutResponse{
-		Code: types.OK,
-	})
+	c.JSON(http.StatusOK, types.LogoutResponse{Code: types.OK})
 }
 
 func Whoami(c *gin.Context) {
 	session := sessions.Default(c)
 	user := session.Get("camp-session")
-	if value, ok := user.(User); ok == true {
+	if value, ok := user.(types.User); ok == true {
 		sessionUid := value.UserId
 		db := mysql.GetDb()
 		var member models.Member
+		// TODO: First 在gorm中sql语句会加入order by id 建议写法：db.Limit(1).Where("username = ?", json.Username).Find(&member)
 		db.Where("id = ?", sessionUid).First(&member)
 		c.JSON(http.StatusOK, types.WhoAmIResponse{
 			Code: types.OK,
@@ -120,7 +98,7 @@ func Whoami(c *gin.Context) {
 	}
 
 	// 返回错误,未授权
-	c.JSON(http.StatusUnauthorized, gin.H{"error": "unAuthorized"})
+	c.JSON(http.StatusUnauthorized, types.WhoAmIResponse{Code: types.LoginRequired})
 	// 若验证不通过，不再调用后续的函数处理
 	c.Abort()
 	return

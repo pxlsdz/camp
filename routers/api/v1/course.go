@@ -19,15 +19,9 @@ func CreateCourse(c *gin.Context) {
 		return
 	}
 
-	//检验课程是否存在 ? 没有对应返回的状态码
 	db := mysql.GetDb()
-	var course models.Course
-	//find := db.Limit(1).Where("coursename = ?",json.Name).Find(&course)
-	//if find.RowsAffected == 1 {
-	//	c.JSON(http.StatusOK, types.CreateCourseResponse{Code: types.})
-	//}
 
-	course = models.Course{
+	course := models.Course{
 		Name:    json.Name,
 		Cap:     json.Cap,
 		Deleted: types.Default,

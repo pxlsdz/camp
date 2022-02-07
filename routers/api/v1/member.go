@@ -12,7 +12,6 @@ import (
 )
 
 func CreateMember(c *gin.Context) {
-	//TODO:登录验证和权限认证
 
 	// 参数校验
 	var json types.CreateMemberRequest
@@ -22,7 +21,7 @@ func CreateMember(c *gin.Context) {
 	}
 
 	if PasswordCheck(json.Password) != nil {
-		c.JSON(http.StatusOK, types.CreateMemberResponse{Code: types.ParamInvalid})
+		c.JSON(http.StatusBadRequest, types.CreateMemberResponse{Code: types.ParamInvalid})
 		return
 	}
 
@@ -57,7 +56,6 @@ func CreateMember(c *gin.Context) {
 }
 
 func GetMember(c *gin.Context) {
-	//TODO:登录验证和权限认证
 
 	var json types.GetMemberRequest
 	if err := c.ShouldBindJSON(&json); err != nil {
@@ -96,7 +94,6 @@ func GetMember(c *gin.Context) {
 }
 
 func UpdateMember(c *gin.Context) {
-	//TODO:登录验证和权限认证
 
 	// 参数校验
 	var json types.UpdateMemberRequest
@@ -129,7 +126,6 @@ func UpdateMember(c *gin.Context) {
 }
 
 func DeleteMember(c *gin.Context) {
-	//TODO:登录验证和权限认证
 
 	// 参数校验
 	var json types.DeleteMemberRequest
@@ -157,7 +153,6 @@ func DeleteMember(c *gin.Context) {
 }
 
 func GetMemberList(c *gin.Context) {
-	//TODO:登录验证和权限认证
 
 	// 参数校验
 	var json types.GetMemberListRequest

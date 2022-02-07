@@ -141,7 +141,7 @@ func (r *RabbitMQ) ConsumeSimple() {
 		//用来区分多个消费者
 		"", // consumer
 		//是否自动应答
-		//这里要改掉，我们用手动应答
+		//这里要改掉，抢课用手动应答
 		false, // auto-ack
 		//是否独有
 		false, // exclusive

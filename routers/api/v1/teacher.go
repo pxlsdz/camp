@@ -21,13 +21,13 @@ func BindCourse(c *gin.Context) {
 	db := mysql.GetDb()
 
 	//寻找teacher在数据库表中的行，似乎teacherID 默认正确，之后在做改变，似乎可以注释掉
-	var teacher models.Member
-	find_teacher := db.Limit(1).Where("id = ?", json.TeacherID).Find(&teacher)
-	//找不到teacher
-	if find_teacher.RowsAffected != 1 {
-		c.JSON(http.StatusOK, types.BindCourseResponse{Code: types.UserNotExisted})
-		return
-	}
+	//var teacher models.Member
+	//find_teacher := db.Limit(1).Where("id = ?", json.TeacherID).Find(&teacher)
+	////找不到teacher
+	//if find_teacher.RowsAffected != 1 {
+	//	c.JSON(http.StatusOK, types.BindCourseResponse{Code: types.UserNotExisted})
+	//	return
+	//}
 
 	var course models.Course
 	find_course := db.Limit(1).Where("id = ?", json.CourseID).Find(&course)
@@ -45,7 +45,6 @@ func BindCourse(c *gin.Context) {
 	//将传入的string类型转成int64
 	teacher_id, _ := strconv.ParseInt(json.TeacherID, 10, 64)
 
-	//单字段更新，但是我不清楚这里的方法是否可以
 	update := db.Model(&course).Update("teacher_id", teacher_id)
 	if update.Error == nil {
 		c.JSON(http.StatusOK, types.BindCourseResponse{Code: types.OK})

@@ -15,6 +15,11 @@ var cli *redis.Client
 var LuaHash string
 
 var script string = `
+		local s = redis.call("Get", KEYS[3])
+		if (not s) then
+			return 4
+		end
+
 		local shc = redis.call("Get", KEYS[1])
 		if (shc) then
 			return 3

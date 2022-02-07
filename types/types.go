@@ -30,7 +30,7 @@ const (
 const (
 	StudentKey          = "s%d"
 	CourseKey           = "c%d"
-	StudentHasCourseKey = "%sh%s"
+	StudentHasCourseKey = "%dh%d"
 )
 
 type ResponseMeta struct {
@@ -276,4 +276,9 @@ type GetStudentCourseResponse struct {
 	Data struct {
 		CourseList []TCourse
 	}
+}
+
+type User struct {
+	UserId   int64
+	UserType UserType
 }
