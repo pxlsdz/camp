@@ -15,7 +15,7 @@ func CreateCourse(c *gin.Context) {
 	//参数校验
 	var json types.CreateCourseRequest
 	if err := c.ShouldBindJSON(&json); err != nil {
-		c.JSON(http.StatusBadRequest, types.CreateMemberResponse{Code: types.ParamInvalid})
+		c.JSON(http.StatusOK, types.CreateMemberResponse{Code: types.ParamInvalid})
 		return
 	}
 
@@ -45,7 +45,7 @@ func GetCourse(c *gin.Context) {
 
 	var json types.GetCourseRequest
 	if err := c.ShouldBindJSON(&json); err != nil {
-		c.JSON(http.StatusBadRequest, types.GetCourseResponse{Code: types.ParamInvalid})
+		c.JSON(http.StatusOK, types.GetCourseResponse{Code: types.ParamInvalid})
 		return
 	}
 

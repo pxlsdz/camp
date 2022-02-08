@@ -16,12 +16,12 @@ func CreateMember(c *gin.Context) {
 	// 参数校验
 	var json types.CreateMemberRequest
 	if err := c.ShouldBindJSON(&json); err != nil {
-		c.JSON(http.StatusBadRequest, types.CreateMemberResponse{Code: types.ParamInvalid})
+		c.JSON(http.StatusOK, types.CreateMemberResponse{Code: types.ParamInvalid})
 		return
 	}
 
 	if PasswordCheck(json.Password) != nil {
-		c.JSON(http.StatusBadRequest, types.CreateMemberResponse{Code: types.ParamInvalid})
+		c.JSON(http.StatusOK, types.CreateMemberResponse{Code: types.ParamInvalid})
 		return
 	}
 
@@ -59,13 +59,13 @@ func GetMember(c *gin.Context) {
 
 	var json types.GetMemberRequest
 	if err := c.ShouldBindJSON(&json); err != nil {
-		c.JSON(http.StatusBadRequest, types.GetMemberResponse{Code: types.ParamInvalid})
+		c.JSON(http.StatusOK, types.GetMemberResponse{Code: types.ParamInvalid})
 		return
 	}
 
 	id, err := strconv.ParseInt(json.UserID, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, types.GetMemberResponse{Code: types.ParamInvalid})
+		c.JSON(http.StatusOK, types.GetMemberResponse{Code: types.ParamInvalid})
 		return
 	}
 
@@ -98,13 +98,13 @@ func UpdateMember(c *gin.Context) {
 	// 参数校验
 	var json types.UpdateMemberRequest
 	if err := c.ShouldBindJSON(&json); err != nil {
-		c.JSON(http.StatusBadRequest, types.UpdateMemberResponse{Code: types.ParamInvalid})
+		c.JSON(http.StatusOK, types.UpdateMemberResponse{Code: types.ParamInvalid})
 		return
 	}
 
 	id, err := strconv.ParseInt(json.UserID, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, types.UpdateMemberResponse{Code: types.ParamInvalid})
+		c.JSON(http.StatusOK, types.UpdateMemberResponse{Code: types.ParamInvalid})
 		return
 	}
 
@@ -135,13 +135,13 @@ func DeleteMember(c *gin.Context) {
 	// 参数校验
 	var json types.DeleteMemberRequest
 	if err := c.ShouldBindJSON(&json); err != nil {
-		c.JSON(http.StatusBadRequest, types.DeleteMemberResponse{Code: types.ParamInvalid})
+		c.JSON(http.StatusOK, types.DeleteMemberResponse{Code: types.ParamInvalid})
 		return
 	}
 
 	id, err := strconv.ParseInt(json.UserID, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, types.DeleteMemberResponse{Code: types.ParamInvalid})
+		c.JSON(http.StatusOK, types.DeleteMemberResponse{Code: types.ParamInvalid})
 		return
 	}
 
@@ -173,7 +173,7 @@ func GetMemberList(c *gin.Context) {
 	// 参数校验
 	var json types.GetMemberListRequest
 	if err := c.ShouldBindJSON(&json); err != nil {
-		c.JSON(http.StatusBadRequest, types.GetMemberListResponse{Code: types.ParamInvalid})
+		c.JSON(http.StatusOK, types.GetMemberListResponse{Code: types.ParamInvalid})
 		return
 	}
 

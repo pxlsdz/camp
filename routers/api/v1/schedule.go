@@ -71,7 +71,7 @@ func ScheduleCourse(c *gin.Context) {
 	var json types.ScheduleCourseRequest
 
 	if err := c.ShouldBindJSON(&json); err != nil {
-		c.JSON(http.StatusBadRequest, types.ScheduleCourseResponse{Code: types.ParamInvalid})
+		c.JSON(http.StatusOK, types.ScheduleCourseResponse{Code: types.ParamInvalid})
 	}
 	_, ret := ScheduleCore(&json.TeacherCourseRelationShip)
 	c.JSON(http.StatusOK, types.ScheduleCourseResponse{

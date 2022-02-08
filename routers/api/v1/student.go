@@ -20,13 +20,13 @@ func GetStudentCourse(c *gin.Context) {
 	//参数校验
 	var jsonRequest types.GetStudentCourseRequest
 	if err := c.ShouldBindJSON(&jsonRequest); err != nil {
-		c.JSON(http.StatusBadRequest, types.GetStudentCourseResponse{Code: types.ParamInvalid})
+		c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.ParamInvalid})
 		return
 	}
 
 	studentID, err := strconv.ParseInt(jsonRequest.StudentID, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, types.GetStudentCourseResponse{Code: types.ParamInvalid})
+		c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.ParamInvalid})
 		return
 	}
 
@@ -50,23 +50,23 @@ func GetStudentCourse(c *gin.Context) {
 
 	var courseList []types.TCourse
 	if err := db.Raw("select c.id as course_id, c.name, c.teacher_id from student_course sc join course c on  sc.course_id = c.id where sc.student_id = ?", studentID).Scan(&courseList).Error; err != nil {
-		c.JSON(http.StatusBadRequest, types.GetStudentCourseResponse{Code: types.UnknownError})
+		c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.UnknownError})
 		return
 
 	}
 
 	//if err := db.Raw("SELECT id as course_id, name, teacher_id FROM course WHERE id IN (SELECT course_id FROM student_course WHERE student_id = ?)", studentID).Scan(&courseList).Error; err != nil {
 	//	if errors.Is(err, gorm.ErrRecordNotFound) {
-	//		c.JSON(http.StatusBadRequest, types.GetStudentCourseResponse{Code: types.StudentHasNoCourse})
+	//		c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.StudentHasNoCourse})
 	//		return
 	//	} else {
-	//		c.JSON(http.StatusBadRequest, types.GetStudentCourseResponse{Code: types.UnknownError})
+	//		c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.UnknownError})
 	//		return
 	//	}
 	//}
 
 	if courseList == nil || len(courseList) == 0 {
-		c.JSON(http.StatusBadRequest, types.GetStudentCourseResponse{Code: types.StudentHasNoCourse})
+		c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.StudentHasNoCourse})
 		return
 	}
 	c.JSON(http.StatusOK, types.GetStudentCourseResponse{
@@ -83,19 +83,19 @@ func BookCourse(c *gin.Context) {
 	// 参数校验
 	var requestJson types.BookCourseRequest
 	if err := c.ShouldBindJSON(&requestJson); err != nil {
-		c.JSON(http.StatusBadRequest, types.BookCourseResponse{Code: types.ParamInvalid})
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.ParamInvalid})
 		return
 	}
 
 	courseId, err := strconv.ParseInt(requestJson.CourseID, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, types.BookCourseResponse{Code: types.ParamInvalid})
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.ParamInvalid})
 		return
 	}
 
 	studentID, err := strconv.ParseInt(requestJson.StudentID, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, types.BookCourseResponse{Code: types.ParamInvalid})
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.ParamInvalid})
 		return
 	}
 
@@ -157,16 +157,16 @@ func BookCourse(c *gin.Context) {
 
 	//// 加锁
 	//if res, err := cli.SetNX(ctx, fmt.Sprintf("%sl%s", requestJson.StudentID, requestJson.CourseID), time.Now().Unix(), time.Minute).Result(); err != nil || !res {
-	//	c.JSON(http.StatusBadRequest, types.BookCourseResponse{Code: types.UnknownError})
+	//	c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
 	//	return
 	//}
 
 	//// 判断学生是否已经拥有该课程
 	//if _, err := cli.Get(ctx, fmt.Sprintf(types.StudentHasCourseKey, requestJson.StudentID, requestJson.CourseID)).Result(); err != redis.Nil {
 	//	if err == nil {
-	//		c.JSON(http.StatusBadRequest, types.BookCourseResponse{Code: types.StudentHasCourse})
+	//		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.StudentHasCourse})
 	//	} else {
-	//		c.JSON(http.StatusBadRequest, types.BookCourseResponse{Code: types.UnknownError})
+	//		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
 	//	}
 	//	return
 	//}
@@ -176,14 +176,14 @@ func BookCourse(c *gin.Context) {
 	//stock, err := cli.Decr(ctx, fmt.Sprintf(types.CourseKey, courseId)).Result()
 	//if err != nil {
 	//	if err == redis.Nil {
-	//		c.JSON(http.StatusBadRequest, types.BookCourseResponse{Code: types.CourseNotExisted})
+	//		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.CourseNotExisted})
 	//	} else {
-	//		c.JSON(http.StatusBadRequest, types.BookCourseResponse{Code: types.UnknownError})
+	//		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
 	//	}
 	//	return
 	//}
 	//if stock < 0 {
-	//	c.JSON(http.StatusBadRequest, types.BookCourseResponse{Code: types.CourseNotAvailable})
+	//	c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.CourseNotAvailable})
 	//}
 
 }

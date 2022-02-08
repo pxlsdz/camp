@@ -14,7 +14,7 @@ func Login(c *gin.Context) {
 
 	var jsonLogin types.LoginRequest
 	if err := c.ShouldBindJSON(&jsonLogin); err != nil {
-		c.JSON(http.StatusBadRequest, types.LoginResponse{Code: types.ParamInvalid})
+		c.JSON(http.StatusOK, types.LoginResponse{Code: types.ParamInvalid})
 		return
 	}
 
@@ -79,7 +79,7 @@ func Logout(c *gin.Context) {
 	}
 
 	// 返回错误,未授权
-	c.JSON(http.StatusUnauthorized, types.LogoutResponse{Code: types.LoginRequired})
+	c.JSON(http.StatusOK, types.LogoutResponse{Code: types.LoginRequired})
 	// 若验证不通过，不再调用后续的函数处理
 	c.Abort()
 	return
@@ -107,7 +107,7 @@ func Whoami(c *gin.Context) {
 	}
 
 	// 返回错误,未授权
-	c.JSON(http.StatusUnauthorized, types.WhoAmIResponse{Code: types.LoginRequired})
+	c.JSON(http.StatusOK, types.WhoAmIResponse{Code: types.LoginRequired})
 	// 若验证不通过，不再调用后续的函数处理
 	c.Abort()
 	return

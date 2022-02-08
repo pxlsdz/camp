@@ -14,7 +14,7 @@ func AdminAuth() gin.HandlerFunc {
 		if value, ok := user.(types.User); ok == true {
 			if value.UserType != types.Admin {
 				// 返回错误,未授权
-				c.JSON(http.StatusUnauthorized, gin.H{"Code": types.PermDenied})
+				c.JSON(http.StatusOK, gin.H{"Code": types.PermDenied})
 				// 若验证不通过，不再调用后续的函数处理
 				c.Abort()
 				return
@@ -23,7 +23,7 @@ func AdminAuth() gin.HandlerFunc {
 			return
 		}
 		// 返回错误,未登录
-		c.JSON(http.StatusUnauthorized, gin.H{"Code": types.LoginRequired})
+		c.JSON(http.StatusOK, gin.H{"Code": types.LoginRequired})
 		// 若验证不通过，不再调用后续的函数处理
 		c.Abort()
 		return
