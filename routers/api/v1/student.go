@@ -24,27 +24,51 @@ func GetStudentCourse(c *gin.Context) {
 		return
 	}
 
-	//这里用student_courses or studentCourses
-	var studentCourses []models.StudentCourse
-	db := mysql.GetDb()
-	if err := db.Where("student_id = ?", jsonRequest.StudentID).Find(&studentCourses).Error; err != nil {
-		c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.UnknownError})
+	studentID, err := strconv.ParseInt(jsonRequest.StudentID, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, types.GetStudentCourseResponse{Code: types.ParamInvalid})
 		return
 	}
 
-	//表的关联有没有更好的方法？
-	var courseList []types.TCourse
-	for _, studentCourse := range studentCourses {
-		var course models.Course
-		//课程没有删除的逻辑，是否还需要判断课程是否存在？
-		_ = db.Find(&course, studentCourse.CourseID)
-		courseList = append(courseList, types.TCourse{
-			CourseID:  strconv.FormatInt(course.ID, 10),
-			Name:      course.Name,
-			TeacherID: strconv.FormatInt(course.TeacherID, 10),
-		})
+	//这里用student_courses or studentCourses
+
+	db := mysql.GetDb()
+	var member models.Member
+	result := db.Take(&member, studentID)
+
+	// 判断用户是否存在
+	if result.RowsAffected == 0 {
+		c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.UserNotExisted})
+		return
 	}
 
+	// 判断用户是否已经删除
+	if member.Deleted == types.Deleted {
+		c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.UserHasDeleted})
+		return
+	}
+
+	var courseList []types.TCourse
+	if err := db.Raw("select c.id as course_id, c.name, c.teacher_id from student_course sc join course c on  sc.course_id = c.id where sc.student_id = ?", studentID).Scan(&courseList).Error; err != nil {
+		c.JSON(http.StatusBadRequest, types.GetStudentCourseResponse{Code: types.UnknownError})
+		return
+
+	}
+
+	//if err := db.Raw("SELECT id as course_id, name, teacher_id FROM course WHERE id IN (SELECT course_id FROM student_course WHERE student_id = ?)", studentID).Scan(&courseList).Error; err != nil {
+	//	if errors.Is(err, gorm.ErrRecordNotFound) {
+	//		c.JSON(http.StatusBadRequest, types.GetStudentCourseResponse{Code: types.StudentHasNoCourse})
+	//		return
+	//	} else {
+	//		c.JSON(http.StatusBadRequest, types.GetStudentCourseResponse{Code: types.UnknownError})
+	//		return
+	//	}
+	//}
+
+	if courseList == nil || len(courseList) == 0 {
+		c.JSON(http.StatusBadRequest, types.GetStudentCourseResponse{Code: types.StudentHasNoCourse})
+		return
+	}
 	c.JSON(http.StatusOK, types.GetStudentCourseResponse{
 		Code: types.OK,
 		Data: struct{ CourseList []types.TCourse }{CourseList: courseList},

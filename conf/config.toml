@@ -1,7 +1,7 @@
 [mysql]
     addr = "180.184.74.13:3306"
     username = "root"
-    password = "bytedancecamp"
+    password = "Bytecamp$21zu"
     database = "camp"
 [redis]
     addr = "127.0.0.1:6379"

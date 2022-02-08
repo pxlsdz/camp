@@ -71,7 +71,7 @@ func GetMember(c *gin.Context) {
 
 	db := mysql.GetDb()
 	var member models.Member
-	result := db.First(&member, id)
+	result := db.Take(&member, id)
 	if result.RowsAffected == 0 {
 		c.JSON(http.StatusOK, types.GetMemberResponse{Code: types.UserNotExisted})
 		return
@@ -110,7 +110,7 @@ func UpdateMember(c *gin.Context) {
 
 	var member models.Member
 	db := mysql.GetDb()
-	result := db.First(&member, id)
+	result := db.Take(&member, id)
 	// 判断用户是否存在
 	if result.RowsAffected == 0 {
 		c.JSON(http.StatusOK, types.UpdateMemberResponse{Code: types.UserNotExisted})
@@ -147,7 +147,7 @@ func DeleteMember(c *gin.Context) {
 
 	var member models.Member
 	db := mysql.GetDb()
-	result := db.First(&member, id)
+	result := db.Take(&member, id)
 	// 判断用户是否存在
 	if result.RowsAffected == 0 {
 		c.JSON(http.StatusOK, types.DeleteMemberResponse{Code: types.UserNotExisted})
