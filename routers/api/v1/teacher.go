@@ -66,7 +66,7 @@ func UnbindCourse(c *gin.Context) {
 	db := mysql.GetDb()
 
 	var teacher models.Member
-	find_teacher := db.Limit(1).Where("id = ?", json.TeacherID).Find(&teacher)
+	find_teacher := db.Limit(1).Where("id = ? and user_type = ?", json.TeacherID, types.Teacher).Find(&teacher)
 	//找不到teacher
 	if find_teacher.RowsAffected != 1 {
 		c.JSON(http.StatusOK, types.UnbindCourseResponse{Code: types.UserNotExisted})
@@ -119,7 +119,7 @@ func GetTeacherCourse(c *gin.Context) {
 
 	//寻找teacher
 	var teacher models.Member
-	find := db.Limit(1).Where("id = ?", json.TeacherID).Find(&teacher)
+	find := db.Limit(1).Where("id = ? and user_type = ?", json.TeacherID, types.Teacher).Find(&teacher)
 	//找不到teacher
 	if find.RowsAffected != 1 {
 		c.JSON(http.StatusOK, types.GetTeacherCourseResponse{Code: types.UserNotExisted})
