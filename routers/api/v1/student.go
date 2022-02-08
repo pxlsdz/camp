@@ -15,7 +15,6 @@ import (
 )
 
 func GetStudentCourse(c *gin.Context) {
-	//TODO: 登陆验证和权限验证
 
 	//参数校验
 	var jsonRequest types.GetStudentCourseRequest
@@ -24,32 +23,46 @@ func GetStudentCourse(c *gin.Context) {
 		return
 	}
 
-	//这里用student_courses or studentCourses
-	var studentCourses []models.StudentCourse
 	db := mysql.GetDb()
-	if err := db.Where("student_id = ?", jsonRequest.StudentID).Find(&studentCourses).Error; err != nil {
-		c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.UnknownError})
+	studentID, err := strconv.ParseInt(jsonRequest.StudentID, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, types.GetStudentCourseResponse{Code: types.ParamInvalid})
 		return
 	}
 
-	//表的关联有没有更好的方法？
-	var courseList []types.TCourse
-	for _, studentCourse := range studentCourses {
-		var course models.Course
-		//课程没有删除的逻辑，是否还需要判断课程是否存在？
-		_ = db.Find(&course, studentCourse.CourseID)
-		courseList = append(courseList, types.TCourse{
-			CourseID:  strconv.FormatInt(course.ID, 10),
-			Name:      course.Name,
-			TeacherID: strconv.FormatInt(course.TeacherID, 10),
-		})
+	//判断学生是否存在
+	//是否需要判断是否是学生，教师，管理员？此处未判断
+	var student models.Member
+	result := db.First(&student, studentID)
+	if result.RowsAffected == 0 {
+		c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.StudentNotExisted})
+		return
 	}
 
+	var courseList []types.TCourse
+	//关联表
+	type Result struct {
+		ID        int64
+		Name      string
+		TeacherID int64
+	}
+	var results []Result
+	db.Raw("SELECT c.id, c.name, c.teacher_id FROM course c WHERE c.id IN (SELECT sc.course_id FROM student_course sc WHERE sc.student_id = ?)", jsonRequest.StudentID).Scan(&results)
+	if len(results) == 0 {
+		c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.StudentHasNoCourse})
+		return
+	}
+	for _, result := range results {
+		courseList = append(courseList, types.TCourse{
+			CourseID:  strconv.FormatInt(result.ID, 10),
+			Name:      result.Name,
+			TeacherID: strconv.FormatInt(result.TeacherID, 10),
+		})
+	}
 	c.JSON(http.StatusOK, types.GetStudentCourseResponse{
 		Code: types.OK,
 		Data: struct{ CourseList []types.TCourse }{CourseList: courseList},
 	})
-
 }
 
 var localCapOverMap map[int64]bool
