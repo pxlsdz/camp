@@ -40,24 +40,17 @@ func hungry(x string, param *scheduleParameter) int {
 
 func ScheduleCore(TeacherCourseRelationShip *map[string][]string) (int, map[string]string) {
 	// course2teacher := make(map[string][]string)
-	teacherList := make([]string, 0)
-	for k, _ := range *TeacherCourseRelationShip {
-		//for i := 0; i < len(v); i++ {
-		//	course2teacher[v[i]] = append(course2teacher[v[i]], k)
-		//}
-		teacherList = append(teacherList, k)
-	}
-
-	// courseList := make([]string, 0)
-	//for k, _ := range course2teacher {
-	//	courseList = append(courseList, k)
-	//}
+	// teacherList := make([]string, 0)
 	sum := 0
 	plan4teacher := make(map[string]string)
 	plan4course := make(map[string]string)
-	for i := 0; i < len(teacherList); i++ {
+	for teacher, _ := range *TeacherCourseRelationShip {
+		//for i := 0; i < len(v); i++ {
+		//	course2teacher[v[i]] = append(course2teacher[v[i]], k)
+		//}
+		//teacherList = append(teacherList, k)
 		vis4course := make(map[string]bool)
-		sum += hungry(teacherList[i], &scheduleParameter{
+		sum += hungry(teacher, &scheduleParameter{
 			teacher2course: TeacherCourseRelationShip,
 			// course2teacher: &course2teacher,
 			plan4teacher: &plan4teacher,
@@ -65,6 +58,11 @@ func ScheduleCore(TeacherCourseRelationShip *map[string][]string) (int, map[stri
 			vis4course:   &vis4course,
 		})
 	}
+
+	// courseList := make([]string, 0)
+	//for k, _ := range course2teacher {
+	//	courseList = append(courseList, k)
+	//}
 	return sum, plan4teacher
 }
 func ScheduleCourse(c *gin.Context) {
