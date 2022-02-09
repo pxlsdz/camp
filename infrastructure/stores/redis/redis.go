@@ -40,9 +40,10 @@ var script string = `
 
 func Init() error {
 	addr := viper.GetString("redis.addr")
+	password := viper.GetString("redis.password")
 	cli = redis.NewClient(&redis.Options{
 		Addr:     addr,
-		Password: "",
+		Password: password,
 		DB:       0,
 	})
 
