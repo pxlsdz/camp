@@ -158,18 +158,19 @@ func DeleteMember(c *gin.Context) {
 	//	return
 	//}
 	//
-	//cli := myRedis.GetClient()
-	//ctx := context.Background()
-	//pipe := cli.Pipeline()
-	//
-	//pipe.SRem(ctx, fmt.Sprintf(types.StudentKey), member.ID)
-	//pipe.Del(ctx, fmt.Sprintf(types.StudentHasCourseKey, member.ID))
-	//
-	//_, err = pipe.Exec(ctx)
-	//if err != nil {
-	//	c.JSON(http.StatusOK, types.DeleteMemberResponse{Code: types.UnknownError})
-	//	return
-	//}
+
+	cli := myRedis.GetClient()
+	ctx := context.Background()
+	pipe := cli.Pipeline()
+
+	pipe.SRem(ctx, fmt.Sprintf(types.StudentKey), member.ID)
+	pipe.Del(ctx, fmt.Sprintf(types.StudentHasCourseKey, member.ID))
+
+	_, err = pipe.Exec(ctx)
+	if err != nil {
+		c.JSON(http.StatusOK, types.DeleteMemberResponse{Code: types.UnknownError})
+		return
+	}
 	c.JSON(http.StatusOK, types.DeleteMemberResponse{Code: types.OK})
 }
 
