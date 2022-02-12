@@ -1,8 +1,7 @@
-package redis
+package myRedis
 
 import (
 	"context"
-	"fmt"
 	"github.com/go-redis/redis/v8"
 	"github.com/spf13/viper"
 	"time"
@@ -49,8 +48,7 @@ func Init() error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	LuaHash, _ = cli.ScriptLoad(ctx, script).Result()
-	fmt.Println(LuaHash)
+	// LuaHash, _ = cli.ScriptLoad(ctx, script).Result()
 	return cli.Ping(ctx).Err()
 }
 

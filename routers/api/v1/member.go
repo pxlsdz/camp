@@ -57,13 +57,8 @@ func CreateMember(c *gin.Context) {
 
 func GetMember(c *gin.Context) {
 
-	var json types.GetMemberRequest
-	if err := c.ShouldBindJSON(&json); err != nil {
-		c.JSON(http.StatusOK, types.GetMemberResponse{Code: types.ParamInvalid})
-		return
-	}
-
-	id, err := strconv.ParseInt(json.UserID, 10, 64)
+	UserID := c.Query("UserID")
+	id, err := strconv.ParseInt(UserID, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusOK, types.GetMemberResponse{Code: types.ParamInvalid})
 		return
