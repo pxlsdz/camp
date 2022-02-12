@@ -3,16 +3,18 @@ package v1
 import (
 	"camp/infrastructure/stores/mysql"
 	"camp/models"
+	"camp/repository"
 	"camp/types"
+	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 	"net/http"
 	"regexp"
 	"strconv"
 )
 
 func CreateMember(c *gin.Context) {
-
 	// 参数校验
 	var json types.CreateMemberRequest
 	if err := c.ShouldBindJSON(&json); err != nil {
@@ -28,9 +30,12 @@ func CreateMember(c *gin.Context) {
 	// 检验用户名是否存在
 	db := mysql.GetDb()
 	var member models.Member
-	find := db.Limit(1).Where("username = ?", json.Username).Find(&member)
-	if find.RowsAffected == 1 {
+	err := db.Where("username = ?", json.Username).Take(&member).Error
+	if err == nil {
 		c.JSON(http.StatusOK, types.CreateMemberResponse{Code: types.UserHasExisted})
+		return
+	} else if errors.Is(err, gorm.ErrRecordNotFound) == false {
+		c.JSON(http.StatusOK, types.CreateMemberResponse{Code: types.UnknownError})
 		return
 	}
 
@@ -64,16 +69,9 @@ func GetMember(c *gin.Context) {
 		return
 	}
 
-	db := mysql.GetDb()
 	var member models.Member
-	result := db.Take(&member, id)
-	if result.RowsAffected == 0 {
-		c.JSON(http.StatusOK, types.GetMemberResponse{Code: types.UserNotExisted})
-		return
-	}
-	// 判断用户是否已经删除
-	if member.Deleted == types.Deleted {
-		c.JSON(http.StatusOK, types.GetMemberResponse{Code: types.UserHasDeleted})
+	if code := repository.GetMemberById(id, &member); code != types.RepositoryOK {
+		c.JSON(http.StatusOK, types.GetMemberResponse{Code: code})
 		return
 	}
 
@@ -104,19 +102,12 @@ func UpdateMember(c *gin.Context) {
 	}
 
 	var member models.Member
-	db := mysql.GetDb()
-	result := db.Take(&member, id)
-	// 判断用户是否存在
-	if result.RowsAffected == 0 {
-		c.JSON(http.StatusOK, types.UpdateMemberResponse{Code: types.UserNotExisted})
-		return
-	}
-	// 判断用户是否已经删除
-	if member.Deleted == types.Deleted {
-		c.JSON(http.StatusOK, types.UpdateMemberResponse{Code: types.UserHasDeleted})
+	if code := repository.GetMemberById(id, &member); code != types.RepositoryOK {
+		c.JSON(http.StatusOK, types.GetMemberResponse{Code: code})
 		return
 	}
 
+	db := mysql.GetDb()
 	if err := db.Model(&member).Update("nickname", json.Nickname).Error; err != nil {
 		c.JSON(http.StatusOK, types.UpdateMemberResponse{Code: types.UnknownError})
 		return
@@ -141,20 +132,12 @@ func DeleteMember(c *gin.Context) {
 	}
 
 	var member models.Member
+	if code := repository.GetMemberById(id, &member); code != types.RepositoryOK {
+		c.JSON(http.StatusOK, types.GetMemberResponse{Code: code})
+		return
+	}
+
 	db := mysql.GetDb()
-	result := db.Take(&member, id)
-	// 判断用户是否存在
-	if result.RowsAffected == 0 {
-		c.JSON(http.StatusOK, types.DeleteMemberResponse{Code: types.UserNotExisted})
-		return
-	}
-
-	// 判断用户是否已经删除
-	if member.Deleted == types.Deleted {
-		c.JSON(http.StatusOK, types.GetMemberResponse{Code: types.UserHasDeleted})
-		return
-	}
-
 	if err := db.Model(&member).Update("deleted", types.Deleted).Error; err != nil {
 		c.JSON(http.StatusOK, types.DeleteMemberResponse{Code: types.UnknownError})
 		return
@@ -164,17 +147,23 @@ func DeleteMember(c *gin.Context) {
 }
 
 func GetMemberList(c *gin.Context) {
+	offsetString := c.Query("Offset")
+	limitString := c.Query("Limit")
+	offset, err := strconv.Atoi(offsetString)
+	if err != nil {
+		c.JSON(http.StatusOK, types.GetMemberResponse{Code: types.ParamInvalid})
+		return
+	}
 
-	// 参数校验
-	var json types.GetMemberListRequest
-	if err := c.ShouldBindJSON(&json); err != nil {
-		c.JSON(http.StatusOK, types.GetMemberListResponse{Code: types.ParamInvalid})
+	limit, err := strconv.Atoi(limitString)
+	if err != nil {
+		c.JSON(http.StatusOK, types.GetMemberResponse{Code: types.ParamInvalid})
 		return
 	}
 
 	var members []models.Member
 	db := mysql.GetDb()
-	if err := db.Where("deleted = ?", types.Default).Offset(json.Offset).Limit(json.Limit).Find(&members).Error; err != nil {
+	if err := db.Where("deleted = ?", types.Default).Offset(offset).Limit(limit).Find(&members).Error; err != nil {
 		c.JSON(http.StatusOK, types.GetMemberListResponse{Code: types.UnknownError})
 		return
 	}

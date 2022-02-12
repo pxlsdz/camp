@@ -41,7 +41,7 @@ func Login(c *gin.Context) {
 	options := sessions.Options{}
 	options.Path = "/"
 	// domain：域名，本地调试，127.0.0.1;正式,180.184.74.13
-	options.Domain = "180.184.74.13"
+	//options.Domain = "180.184.74.13"
 	//options.Domain = "127.0.0.1"
 	//maxAge: x<0,立即删除cookie; x=0,无限时间; x>0,x秒之后过期
 	options.MaxAge = 0

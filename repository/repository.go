@@ -28,9 +28,8 @@ func GetBoolStudentById(id int64) types.ErrNo {
 }
 
 // GetBoolMemberById 判断用户是否存在、是否删除
-func GetBoolMemberById(id int64) types.ErrNo {
+func GetMemberById(id int64, member *models.Member) types.ErrNo {
 	db := mysql.GetDb()
-	var member models.Member
 	if err := db.Take(&member, id).Error; err != nil {
 		// 判断用户是否存在
 		if errors.Is(err, gorm.ErrRecordNotFound) {

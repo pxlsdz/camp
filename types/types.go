@@ -96,7 +96,7 @@ type CreateMemberResponse struct {
 // 获取成员信息
 
 type GetMemberRequest struct {
-	UserID string `binding:"required"`
+	UserID string
 }
 
 // 如果用户已删除请返回已删除状态码，不存在请返回不存在状态码
