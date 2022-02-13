@@ -3,8 +3,11 @@ package v1
 import (
 	"camp/infrastructure/stores/mysql"
 	"camp/models"
+	"camp/repository"
 	"camp/types"
+	"errors"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 	"net/http"
 	"strconv"
 )
@@ -30,11 +33,16 @@ func BindCourse(c *gin.Context) {
 	//}
 
 	var course models.Course
-	find_course := db.Limit(1).Where("id = ?", json.CourseID).Find(&course)
 	//找不到course
-	if find_course.RowsAffected != 1 {
-		c.JSON(http.StatusOK, types.BindCourseResponse{Code: types.CourseNotExisted})
-		return
+	if err := db.Take(&course, json.CourseID).Error; err != nil {
+		// 判断课程是否存在
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusOK, types.BindCourseResponse{Code: types.CourseNotExisted})
+			return
+		} else {
+			c.JSON(http.StatusOK, types.BindCourseResponse{Code: types.UnknownError})
+			return
+		}
 	}
 	//course被绑定
 	if course.TeacherID != 0 {
@@ -66,19 +74,28 @@ func UnbindCourse(c *gin.Context) {
 	db := mysql.GetDb()
 
 	var teacher models.Member
-	find_teacher := db.Limit(1).Where("id = ? and user_type = ?", json.TeacherID, types.Teacher).Find(&teacher)
-	//找不到teacher
-	if find_teacher.RowsAffected != 1 {
-		c.JSON(http.StatusOK, types.UnbindCourseResponse{Code: types.UserNotExisted})
+	TeacherId, _ := strconv.ParseInt(json.TeacherID, 10, 64)
+
+	//端正老哥的api接口
+	errNo := repository.GetMemberById(TeacherId, &teacher)
+	if errNo != types.OK {
+		c.JSON(http.StatusOK, types.BindCourseResponse{Code: errNo})
+		return
+	} else if teacher.UserType != types.Teacher { //特判类型是否匹配
+		c.JSON(http.StatusOK, types.BindCourseResponse{Code: types.PermDenied})
 		return
 	}
 
 	var course models.Course
-	find_course := db.Limit(1).Where("id = ?", json.CourseID).Find(&course)
-	//找不到course
-	if find_course.RowsAffected != 1 {
-		c.JSON(http.StatusOK, types.UnbindCourseResponse{Code: types.CourseNotExisted})
-		return
+	if err := db.Take(&course, json.CourseID).Error; err != nil {
+		// 判断课程是否存在
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusOK, types.BindCourseResponse{Code: types.CourseNotExisted})
+			return
+		} else {
+			c.JSON(http.StatusOK, types.BindCourseResponse{Code: types.UnknownError})
+			return
+		}
 	}
 	//course未被绑定 （待修改）
 	if course.TeacherID == 0 {
@@ -106,23 +123,30 @@ func UnbindCourse(c *gin.Context) {
 }
 
 func GetTeacherCourse(c *gin.Context) {
-
 	//校验参数是否合法
-	var json types.GetTeacherCourseRequest
 
-	if err := c.ShouldBindJSON(&json); err != nil {
+	TeacherID := c.Query("TeacherID")
+	_, err := strconv.ParseInt(TeacherID, 10, 64)
+	if err != nil {
 		c.JSON(http.StatusOK, types.GetTeacherCourseResponse{Code: types.ParamInvalid})
 		return
 	}
+
+	json := types.GetTeacherCourseRequest{TeacherID: TeacherID}
 
 	db := mysql.GetDb()
 
 	//寻找teacher
 	var teacher models.Member
-	find := db.Limit(1).Where("id = ? and user_type = ?", json.TeacherID, types.Teacher).Find(&teacher)
-	//找不到teacher
-	if find.RowsAffected != 1 {
-		c.JSON(http.StatusOK, types.GetTeacherCourseResponse{Code: types.UserNotExisted})
+	TeacherId, _ := strconv.ParseInt(json.TeacherID, 10, 64)
+
+	//端正老哥的api接口
+	errNo := repository.GetMemberById(TeacherId, &teacher)
+	if errNo != types.OK {
+		c.JSON(http.StatusOK, types.BindCourseResponse{Code: errNo})
+		return
+	} else if teacher.UserType != types.Teacher { //特判类型是否匹配
+		c.JSON(http.StatusOK, types.BindCourseResponse{Code: types.PermDenied})
 		return
 	}
 

@@ -24,7 +24,7 @@ func GetBoolStudentById(id int64) types.ErrNo {
 	if student.Deleted == types.Deleted {
 		return types.UserHasDeleted
 	}
-	return types.RepositoryOK
+	return types.OK
 }
 
 // GetBoolMemberById 判断用户是否存在、是否删除
@@ -42,9 +42,10 @@ func GetMemberById(id int64, member *models.Member) types.ErrNo {
 	if member.Deleted == types.Deleted {
 		return types.UserHasDeleted
 	}
-	return types.RepositoryOK
+	return types.OK
 }
 
+// GetBoolMemberById 判断用户是否存在、是否删除
 func GetCapCourseById(id int64, cap *int) types.ErrNo {
 	db := mysql.GetDb()
 	var course models.Course
@@ -57,5 +58,5 @@ func GetCapCourseById(id int64, cap *int) types.ErrNo {
 		}
 	}
 	*cap = course.Cap
-	return types.RepositoryOK
+	return types.OK
 }
