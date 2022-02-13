@@ -2,16 +2,19 @@ package v1
 
 import (
 	"camp/infrastructure/mq/rabbitmq"
+	"camp/infrastructure/stores/myRedis"
 	"camp/infrastructure/stores/mysql"
-	"camp/infrastructure/stores/redis"
 	"camp/models"
+	"camp/repository"
 	"camp/types"
+	"camp/utils"
 	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 func GetStudentCourse(c *gin.Context) {
@@ -106,34 +109,86 @@ func BookCourse(c *gin.Context) {
 	}
 
 	ctx := context.Background()
-	cli := redis.GetClient()
-	// redis lua脚本实现检验该学生是否已经有该课和课程数量是否足够
-	// 缓存设计待讨论
-	// 学生是否存在与商品是否存在 是否和减少库存是一个原子性质操作？
-	res, err := cli.EvalSha(ctx, redis.LuaHash, []string{fmt.Sprintf(types.StudentHasCourseKey, studentID, courseId), fmt.Sprintf(types.CourseKey, courseId), fmt.Sprintf(types.StudentKey, studentID)}).Result()
+	cli := myRedis.GetClient()
+	db := mysql.GetDb()
 
-	if err != nil || res == int64(-1) {
+	// 被删除的用户一直攻击 需要做特殊出来，缓存
+	// 判断学生是否存在
+	val, err := cli.SIsMember(ctx, types.StudentKey, studentID).Result()
+	if err != nil {
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
+		return
+	} else if val == false {
+		if code := repository.GetBoolStudentById(studentID); code != types.RepositoryOK {
+			c.JSON(http.StatusOK, types.BookCourseResponse{Code: code})
+			return
+		}
+		// 更新缓存
+		cli.SAdd(ctx, types.StudentKey, studentID)
+	}
+
+	// 判断课程是否存在
+	_, err = cli.Get(ctx, fmt.Sprintf(types.CourseKey, courseId)).Result()
+	if err == myRedis.Nil {
+		var cap int
+		if code := repository.GetCapCourseById(courseId, &cap); code != types.RepositoryOK {
+			c.JSON(http.StatusOK, types.BookCourseResponse{Code: code})
+			return
+		}
+		cli.Set(ctx, fmt.Sprintf(types.CourseKey, courseId), cap, -1)
+	} else if err != nil {
 		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
 		return
 	}
-	if res == int64(4) {
-		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.StudentNotExisted})
+
+	//  加锁
+	lock := utils.NewDistributedLock(cli, ctx, fmt.Sprintf("%d:%d", studentID, courseId), time.Second*10)
+	lock.Lock()
+	value, err := cli.Exists(ctx, fmt.Sprintf(types.StudentHasCourseKey, studentID)).Result()
+	if err != nil {
+		lock.Unlock()
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
+		return
+	} else if value == 0 {
+		// 导入mysql学生选课记录
+		var courseIDs []int64
+		if err := db.Select("course_id").Where("student_id = ?", studentID).Model(&models.StudentCourse{}).Scan(&courseIDs).Error; err != nil {
+			lock.Unlock()
+			c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
+			return
+		}
+		t := make([]interface{}, len(courseIDs))
+		for i, v := range courseIDs {
+			t[i] = v
+		}
+		cli.SAdd(ctx, types.StudentKey, t)
+	} else {
+		// 学生 已经有该课程
+		if cli.SIsMember(ctx, fmt.Sprintf(types.StudentHasCourseKey, studentID), courseId).Val() == true {
+			lock.Unlock()
+			c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.StudentHasCourse})
+			return
+		}
+	}
+
+	//  预扣减库存
+	stock, err := cli.Decr(ctx, fmt.Sprintf(types.CourseKey, courseId)).Result()
+	if err != nil {
+		lock.Unlock()
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
 		return
 	}
 
-	if res == int64(3) {
-		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.StudentHasCourse})
-		return
-	}
-	if res == int64(2) {
-		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.CourseNotExisted})
-		return
-	}
-	if res == int64(0) {
-		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.CourseNotAvailable})
+	if stock < 0 {
 		localCapOverMap[courseId] = true
+		lock.Unlock()
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.CourseNotAvailable})
 		return
 	}
+
+	cli.SAdd(ctx, fmt.Sprintf(types.StudentHasCourseKey, studentID), courseId)
+	lock.Unlock()
+
 	// 消息队列减少课程数据库的库存以及创建数据库表
 	//创建消息体
 
@@ -153,7 +208,53 @@ func BookCourse(c *gin.Context) {
 
 	c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.OK})
 
-	return
+	// redis lua脚本实现检验该学生是否已经有该课和课程数量是否足够
+	// 缓存设计待讨论
+	// 学生是否存在与商品是否存在 是否和减少库存是一个原子性质操作？
+	//res, err := cli.EvalSha(ctx, myRedis.LuaHash, []string{fmt.Sprintf(types.StudentHasCourseKey, studentID, courseId), fmt.Sprintf(types.CourseKey, courseId), fmt.Sprintf(types.StudentKey, studentID)}).Result()
+	//
+	//if err != nil || res == int64(-1) {
+	//	c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
+	//	return
+	//}
+	//if res == int64(4) {
+	//	c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.StudentNotExisted})
+	//	return
+	//}
+	//
+	//if res == int64(3) {
+	//	c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.StudentHasCourse})
+	//	return
+	//}
+	//if res == int64(2) {
+	//	c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.CourseNotExisted})
+	//	return
+	//}
+	//if res == int64(0) {
+	//	c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.CourseNotAvailable})
+	//	localCapOverMap[courseId] = true
+	//	return
+	//}
+	//// 消息队列减少课程数据库的库存以及创建数据库表
+	////创建消息体
+	//
+	//studentCourse := models.StudentCourse{
+	//	StudentID: studentID,
+	//	CourseID:  courseId,
+	//}
+	////类型转化
+	//byteMessage, _ := json.Marshal(studentCourse)
+	////if err != nil {
+	////
+	////}
+	//rabbitMQ := rabbitmq.GetRabbitMQ()
+	//err = rabbitMQ.PublishSimple(string(byteMessage))
+	////if err != nil {
+	////}
+	//
+	//c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.OK})
+	//
+	//return
 
 	//// 加锁
 	//if res, err := cli.SetNX(ctx, fmt.Sprintf("%sl%s", requestJson.StudentID, requestJson.CourseID), time.Now().Unix(), time.Minute).Result(); err != nil || !res {
@@ -171,7 +272,7 @@ func BookCourse(c *gin.Context) {
 	//	return
 	//}
 	//
-	//// 预减库存
+	// 预减库存
 	//courseId, _ := strconv.ParseInt(requestJson.CourseID, 10, 64)
 	//stock, err := cli.Decr(ctx, fmt.Sprintf(types.CourseKey, courseId)).Result()
 	//if err != nil {

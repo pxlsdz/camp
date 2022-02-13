@@ -2,8 +2,8 @@ package main
 
 import (
 	"camp/infrastructure/mq/rabbitmq"
+	"camp/infrastructure/stores/myRedis"
 	"camp/infrastructure/stores/mysql"
-	"camp/infrastructure/stores/redis"
 	"camp/models"
 	"camp/routers"
 	"camp/types"
@@ -26,7 +26,7 @@ func main() {
 	}
 
 	// 连接redis
-	if err := redis.Init(); err != nil {
+	if err := myRedis.Init(); err != nil {
 		panic(err)
 	}
 
@@ -54,40 +54,48 @@ func main() {
 
 func initCourseCap() {
 	ctx := context.Background()
-	cli := redis.GetClient()
+	cli := myRedis.GetClient()
 	db := mysql.GetDb()
 
 	// 导入mysql课程库存记录
 	var courses []models.Course
-	if err := db.Where("deleted = ?", types.Default).Find(&courses).Error; err != nil {
+	if err := db.Select("id, cap").Where("deleted = ?", types.Default).Find(&courses).Error; err != nil {
 		panic(err)
 	}
+
+	pipe := cli.Pipeline()
 	for _, course := range courses {
-		if err := cli.Set(ctx, fmt.Sprintf(types.CourseKey, course.ID), course.Cap, -1).Err(); err != nil {
-			panic(err)
-		}
+		pipe.Set(ctx, fmt.Sprintf(types.CourseKey, course.ID), course.Cap, -1)
 	}
 
 	// 导入mysql选课记录
 	var studentCourses []models.StudentCourse
-	if err := db.Find(&studentCourses).Error; err != nil {
+	if err := db.Select("student_id, course_id").Find(&studentCourses).Error; err != nil {
 		panic(err)
 	}
+
+	s2c := make(map[int64][]interface{})
 	for _, studentCourses := range studentCourses {
-		if err := cli.Set(ctx, fmt.Sprintf(types.StudentHasCourseKey, studentCourses.StudentID, studentCourses.CourseID), 1, -1).Err(); err != nil {
-			panic(err)
-		}
+		s2c[studentCourses.StudentID] = append(s2c[studentCourses.StudentID], studentCourses.CourseID)
+	}
+	for k, v := range s2c {
+		pipe.SAdd(ctx, fmt.Sprintf(types.StudentHasCourseKey, k), v)
 	}
 
 	// 导入mysql学生成员记录
-	var students []models.Member
-	if err := db.Where("user_type", types.Student).Find(&students).Error; err != nil {
+	var studentIDs []int64
+	if err := db.Select("id").Where("user_type = ? AND deleted = ?", types.Student, types.Default).Model(&models.Member{}).Scan(&studentIDs).Error; err != nil {
 		panic(err)
 	}
-	for _, student := range students {
-		if err := cli.Set(ctx, fmt.Sprintf(types.StudentKey, student.ID), 1, -1).Err(); err != nil {
-			panic(err)
-		}
+	t := make([]interface{}, len(studentIDs))
+	for i, v := range studentIDs {
+		t[i] = v
+	}
+	pipe.SAdd(ctx, types.StudentKey, t)
+
+	_, err := pipe.Exec(ctx)
+	if err != nil {
+		panic(err)
 	}
 }
 
