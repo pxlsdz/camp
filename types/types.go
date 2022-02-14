@@ -33,6 +33,7 @@ const (
 	StudentKey          = "s"
 	CourseKey           = "c%d"
 	StudentHasCourseKey = "sc%d"
+	TCourseKey          = "cc%d"
 )
 
 type ResponseMeta struct {
@@ -202,7 +203,7 @@ type CreateCourseResponse struct {
 // 获取课程
 // Method: Get
 type GetCourseRequest struct {
-	CourseID string `binding:"required"`
+	CourseID string
 }
 
 type GetCourseResponse struct {

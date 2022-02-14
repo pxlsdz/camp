@@ -21,42 +21,98 @@ func GetStudentCourse(c *gin.Context) {
 	//TODO: 登陆验证和权限验证
 
 	//参数校验
-	var jsonRequest types.GetStudentCourseRequest
-	if err := c.ShouldBindJSON(&jsonRequest); err != nil {
-		c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.ParamInvalid})
-		return
-	}
-
-	studentID, err := strconv.ParseInt(jsonRequest.StudentID, 10, 64)
+	StudentID := c.Query("StudentID")
+	studentID, err := strconv.ParseInt(StudentID, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.ParamInvalid})
 		return
 	}
 
-	//这里用student_courses or studentCourses
-
+	ctx := context.Background()
+	cli := myRedis.GetClient()
 	db := mysql.GetDb()
-	var member models.Member
-	result := db.Take(&member, studentID)
 
-	// 判断用户是否存在
-	if result.RowsAffected == 0 {
-		c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.UserNotExisted})
+	//判断学生是否存在
+	//逻辑和抢课函数一致
+	val, err := cli.SIsMember(ctx, types.StudentKey, studentID).Result()
+	if err != nil {
+		c.JSON(http.StatusOK, types.GetCourseResponse{Code: types.UnknownError})
 		return
 	}
-
-	// 判断用户是否已经删除
-	if member.Deleted == types.Deleted {
-		c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.UserHasDeleted})
-		return
+	if val == false {
+		if code := repository.GetBoolStudentById(studentID); code != types.OK {
+			c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: code})
+			return
+		}
+		cli.SAdd(ctx, types.StudentKey, studentID)
 	}
 
-	var courseList []types.TCourse
-	if err := db.Raw("select c.id as course_id, c.name, c.teacher_id from student_course sc join course c on  sc.course_id = c.id where sc.student_id = ?", studentID).Scan(&courseList).Error; err != nil {
-		c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.UnknownError})
+	//判断课程列表是否存在
+	key := fmt.Sprintf(types.StudentHasCourseKey, studentID)
+	var courseIDs []int64
+	n, err := cli.Exists(ctx, key).Result()
+	if err != nil {
+		c.JSON(http.StatusOK, types.GetCourseResponse{Code: types.UnknownError})
 		return
+	} else if n > 0 { //key存在于redis中
+		all, err := cli.SMembers(ctx, key).Result()
+		if err != nil {
+			c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.UnknownError})
+			return
+		}
 
+		for _, id := range all {
+			courseID, err := strconv.ParseInt(id, 10, 64)
+			if err != nil {
+				c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.UnknownError})
+				return
+			}
+			courseIDs = append(courseIDs, courseID)
+		}
+	} else {
+		if err := db.Select("course_id").Where("student_id = ?", studentID).Model(&models.StudentCourse{}).Scan(&courseIDs).Error; err != nil {
+			c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.UnknownError})
+			return
+		}
+		//课程列表写入redis
+		for courseID := range courseIDs {
+			cli.SAdd(ctx, key, courseID)
+		}
+		//设置十分钟过期
+		cli.Expire(ctx, key, 600)
 	}
+
+	courseList := make([]types.TCourse, len(courseIDs))
+	for i, id := range courseIDs {
+		repository.GetTCourseByID(id, &courseList[i])
+	}
+
+	c.JSON(http.StatusOK, types.GetStudentCourseResponse{
+		Code: types.OK,
+		Data: struct{ CourseList []types.TCourse }{CourseList: courseList},
+	})
+	//db := mysql.GetDb()
+	//var member models.Member
+	//result := db.Take(&member, studentID)
+	//
+	//// 判断用户是否存在
+	//if result.RowsAffected == 0 {
+	//	c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.UserNotExisted})
+	//	return
+	//}
+	//
+	//// 判断用户是否已经删除
+	//if member.Deleted == types.Deleted {
+	//	c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.UserHasDeleted})
+	//	return
+	//}
+	//
+	//var courseList []types.TCourse
+	//if err := db.Raw("select c.id as course_id, c.name, c.teacher_id from student_course sc join course c on  sc.course_id = c.id where sc.student_id = ?", studentID).Scan(&courseList).Error; err != nil {
+	//	c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.UnknownError})
+	//	return
+	//
+	//}
 
 	//if err := db.Raw("SELECT id as course_id, name, teacher_id FROM course WHERE id IN (SELECT course_id FROM student_course WHERE student_id = ?)", studentID).Scan(&courseList).Error; err != nil {
 	//	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -68,14 +124,14 @@ func GetStudentCourse(c *gin.Context) {
 	//	}
 	//}
 
-	if courseList == nil || len(courseList) == 0 {
-		c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.StudentHasNoCourse})
-		return
-	}
-	c.JSON(http.StatusOK, types.GetStudentCourseResponse{
-		Code: types.OK,
-		Data: struct{ CourseList []types.TCourse }{CourseList: courseList},
-	})
+	//if courseList == nil || len(courseList) == 0 {
+	//	c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.StudentHasNoCourse})
+	//	return
+	//}
+	//c.JSON(http.StatusOK, types.GetStudentCourseResponse{
+	//	Code: types.OK,
+	//	Data: struct{ CourseList []types.TCourse }{CourseList: courseList},
+	//})
 
 }
 
@@ -119,7 +175,7 @@ func BookCourse(c *gin.Context) {
 		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
 		return
 	} else if val == false {
-		if code := repository.GetBoolStudentById(studentID); code != types.RepositoryOK {
+		if code := repository.GetBoolStudentById(studentID); code != types.OK {
 			c.JSON(http.StatusOK, types.BookCourseResponse{Code: code})
 			return
 		}
@@ -131,7 +187,7 @@ func BookCourse(c *gin.Context) {
 	_, err = cli.Get(ctx, fmt.Sprintf(types.CourseKey, courseId)).Result()
 	if err == myRedis.Nil {
 		var cap int
-		if code := repository.GetCapCourseById(courseId, &cap); code != types.RepositoryOK {
+		if code := repository.GetCapCourseById(courseId, &cap); code != types.OK {
 			c.JSON(http.StatusOK, types.BookCourseResponse{Code: code})
 			return
 		}
