@@ -135,7 +135,7 @@ func GetStudentCourse(c *gin.Context) {
 
 }
 
-var localCapOverMap map[int64]bool
+//var localCapOverMap map[int64]bool
 
 func BookCourse(c *gin.Context) {
 
@@ -158,11 +158,11 @@ func BookCourse(c *gin.Context) {
 		return
 	}
 
-	_, ok := localCapOverMap[courseId]
-	if ok {
-		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.CourseNotAvailable})
-		return
-	}
+	//_, ok := localCapOverMap[courseId]
+	//if ok {
+	//	c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.CourseNotAvailable})
+	//	return
+	//}
 
 	ctx := context.Background()
 	cli := myRedis.GetClient()

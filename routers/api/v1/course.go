@@ -3,16 +3,14 @@ package v1
 import (
 	"camp/infrastructure/stores/mysql"
 	"camp/models"
+	"camp/repository"
 	"camp/types"
-	"errors"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 	"net/http"
 	"strconv"
 )
 
 func CreateCourse(c *gin.Context) {
-	//TODO: 权限验证
 
 	//参数校验
 	var json types.CreateCourseRequest
@@ -48,40 +46,19 @@ func CreateCourse(c *gin.Context) {
 }
 
 func GetCourse(c *gin.Context) {
-	//TODO : 权限验证
 
 	CourseID := c.Query("CourseID")
 	id, err := strconv.ParseInt(CourseID, 10, 64)
-	//var json types.GetCourseRequest
-	//if err := c.ShouldBindJSON(&json); err != nil {
-	//	c.JSON(http.StatusOK, types.GetCourseResponse{Code: types.ParamInvalid})
-	//	return
-	//}
+
 	if err != nil {
 		c.JSON(http.StatusOK, types.GetCourseResponse{Code: types.ParamInvalid})
 		return
 	}
 
-	db := mysql.GetDb()
-	var course models.Course
-	//判断课程是否存在
-	if err := db.Take(&course, id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusOK, types.GetCourseResponse{Code: types.CourseNotExisted})
-			return
-		} else {
-			c.JSON(http.StatusOK, types.GetCourseResponse{Code: types.UnknownError})
-			return
-		}
-	}
-	//判断课程是否删除 --省略删除课程这一步，无状态码
-
+	var course types.TCourse
+	code := repository.GetTCourseByID(id, &course)
 	c.JSON(http.StatusOK, types.GetCourseResponse{
-		Code: types.OK,
-		Data: types.TCourse{
-			CourseID:  strconv.FormatInt(course.ID, 10),
-			Name:      course.Name,
-			TeacherID: strconv.FormatInt(course.TeacherID, 10),
-		},
+		Code: code,
+		Data: course,
 	})
 }
