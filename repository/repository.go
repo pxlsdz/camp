@@ -18,7 +18,7 @@ func GetBoolStudentById(id int64) types.ErrNo {
 	if err := db.Take(&student, id).Where("user_type = ?", types.Student).Error; err != nil {
 		// 判断学生是否存在
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return types.UserNotExisted
+			return types.StudentNotExisted
 		} else {
 			return types.UnknownError
 		}
@@ -30,7 +30,7 @@ func GetBoolStudentById(id int64) types.ErrNo {
 	return types.OK
 }
 
-// GetBoolMemberById 判断用户是否存在、是否删除
+// GetMemberById 判断用户是否存在、是否删除
 func GetMemberById(id int64, member *models.Member) types.ErrNo {
 	db := mysql.GetDb()
 	if err := db.Take(&member, id).Error; err != nil {
@@ -48,7 +48,7 @@ func GetMemberById(id int64, member *models.Member) types.ErrNo {
 	return types.OK
 }
 
-// GetBoolMemberById 判断用户是否存在、是否删除
+// GetBoolMemberById 判断课程是否存在并获取课程容量
 func GetCapCourseById(id int64, cap *int) types.ErrNo {
 	db := mysql.GetDb()
 	var course models.Course

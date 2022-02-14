@@ -25,14 +25,13 @@ const (
 	StudentHasNoCourse ErrNo = 13 // 学生没有课程
 	StudentHasCourse   ErrNo = 14 // 学生有课程
 
-	RepositoryOK ErrNo = 15 // 底层执行成功
-
 	UnknownError ErrNo = 255 // 未知错误
 )
 const (
 	StudentKey          = "s"
 	CourseKey           = "c%d"
 	StudentHasCourseKey = "sc%d"
+	TCourseKey          = "cc%d"
 )
 
 type ResponseMeta struct {

@@ -7,14 +7,14 @@ import (
 	"camp/models"
 	"camp/repository"
 	"camp/types"
-	"camp/utils"
 	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/go-redsync/redsync/v4"
+	"github.com/go-redsync/redsync/v4/redis/goredis/v8"
 	"net/http"
 	"strconv"
-	"time"
 )
 
 func GetStudentCourse(c *gin.Context) {
@@ -119,7 +119,7 @@ func BookCourse(c *gin.Context) {
 		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
 		return
 	} else if val == false {
-		if code := repository.GetBoolStudentById(studentID); code != types.RepositoryOK {
+		if code := repository.GetBoolStudentById(studentID); code != types.OK {
 			c.JSON(http.StatusOK, types.BookCourseResponse{Code: code})
 			return
 		}
@@ -131,7 +131,7 @@ func BookCourse(c *gin.Context) {
 	_, err = cli.Get(ctx, fmt.Sprintf(types.CourseKey, courseId)).Result()
 	if err == myRedis.Nil {
 		var cap int
-		if code := repository.GetCapCourseById(courseId, &cap); code != types.RepositoryOK {
+		if code := repository.GetCapCourseById(courseId, &cap); code != types.OK {
 			c.JSON(http.StatusOK, types.BookCourseResponse{Code: code})
 			return
 		}
@@ -141,53 +141,79 @@ func BookCourse(c *gin.Context) {
 		return
 	}
 
-	//  加锁
-	lock := utils.NewDistributedLock(cli, ctx, fmt.Sprintf("%d:%d", studentID, courseId), time.Second*10)
-	lock.Lock()
+	pool := goredis.NewPool(cli)
+	rs := redsync.New(pool)
+
+	mutex := rs.NewMutex(fmt.Sprintf("%d:%d", studentID, courseId))
+
+	if err := mutex.LockContext(ctx); err != nil {
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
+		return
+	}
+	// 标志学生是否含有该课程
+	flag := false
+	// TODO: 布隆过滤器
 	value, err := cli.Exists(ctx, fmt.Sprintf(types.StudentHasCourseKey, studentID)).Result()
 	if err != nil {
-		lock.Unlock()
+		if _, err := mutex.UnlockContext(ctx); err != nil {
+		}
 		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
 		return
 	} else if value == 0 {
 		// 导入mysql学生选课记录
 		var courseIDs []int64
 		if err := db.Select("course_id").Where("student_id = ?", studentID).Model(&models.StudentCourse{}).Scan(&courseIDs).Error; err != nil {
-			lock.Unlock()
+			if _, err := mutex.UnlockContext(ctx); err != nil {
+			}
 			c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
 			return
 		}
-		t := make([]interface{}, len(courseIDs))
-		for i, v := range courseIDs {
-			t[i] = v
+		if courseIDs != nil && len(courseIDs) == 0 {
+			t := make([]interface{}, len(courseIDs))
+			for i, v := range courseIDs {
+				if v == courseId {
+					flag = true
+				}
+				t[i] = v
+			}
+			cli.SAdd(ctx, types.StudentKey, t)
+		} else {
+			// TODO: 布隆过滤器
 		}
-		cli.SAdd(ctx, types.StudentKey, t)
 	} else {
 		// 学生 已经有该课程
-		if cli.SIsMember(ctx, fmt.Sprintf(types.StudentHasCourseKey, studentID), courseId).Val() == true {
-			lock.Unlock()
-			c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.StudentHasCourse})
-			return
+		if cli.SIsMember(ctx, fmt.Sprintf(types.StudentHasCourseKey, studentID), courseId).Val() {
+			flag = true
 		}
+	}
+	if flag {
+		if _, err := mutex.UnlockContext(ctx); err != nil {
+		}
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.StudentHasCourse})
+		return
 	}
 
 	//  预扣减库存
 	stock, err := cli.Decr(ctx, fmt.Sprintf(types.CourseKey, courseId)).Result()
 	if err != nil {
-		lock.Unlock()
+		if _, err := mutex.UnlockContext(ctx); err != nil {
+		}
 		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
 		return
 	}
 
 	if stock < 0 {
-		localCapOverMap[courseId] = true
-		lock.Unlock()
+		//localCapOverMap[courseId] = true
+		if _, err := mutex.UnlockContext(ctx); err != nil {
+		}
 		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.CourseNotAvailable})
 		return
 	}
 
 	cli.SAdd(ctx, fmt.Sprintf(types.StudentHasCourseKey, studentID), courseId)
-	lock.Unlock()
+
+	if _, err := mutex.UnlockContext(ctx); err != nil {
+	}
 
 	// 消息队列减少课程数据库的库存以及创建数据库表
 	//创建消息体

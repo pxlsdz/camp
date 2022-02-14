@@ -3,14 +3,15 @@ package v1
 import (
 	"camp/infrastructure/stores/myRedis"
 	"camp/infrastructure/stores/mysql"
+	"errors"
+	"gorm.io/gorm"
+
 	"camp/models"
 	"camp/repository"
 	"camp/types"
 	"context"
-	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -50,6 +51,12 @@ func CreateMember(c *gin.Context) {
 	}
 
 	if err := db.Create(&member).Error; err != nil {
+		e1 := fmt.Sprintf("%s", err)
+		e2 := fmt.Sprintf("Error 1062: Duplicate entry '%s' for key 'username'", member.Username)
+		if e1 == e2 {
+			c.JSON(http.StatusOK, types.CreateMemberResponse{Code: types.UserHasExisted})
+			return
+		}
 		c.JSON(http.StatusOK, types.CreateMemberResponse{Code: types.UnknownError})
 		return
 	}
@@ -80,7 +87,7 @@ func GetMember(c *gin.Context) {
 	}
 
 	var member models.Member
-	if code := repository.GetMemberById(id, &member); code != types.RepositoryOK {
+	if code := repository.GetMemberById(id, &member); code != types.OK {
 		c.JSON(http.StatusOK, types.GetMemberResponse{Code: code})
 		return
 	}
@@ -112,7 +119,7 @@ func UpdateMember(c *gin.Context) {
 	}
 
 	var member models.Member
-	if code := repository.GetMemberById(id, &member); code != types.RepositoryOK {
+	if code := repository.GetMemberById(id, &member); code != types.OK {
 		c.JSON(http.StatusOK, types.GetMemberResponse{Code: code})
 		return
 	}
@@ -142,7 +149,7 @@ func DeleteMember(c *gin.Context) {
 	}
 
 	var member models.Member
-	if code := repository.GetMemberById(id, &member); code != types.RepositoryOK {
+	if code := repository.GetMemberById(id, &member); code != types.OK {
 		c.JSON(http.StatusOK, types.GetMemberResponse{Code: code})
 		return
 	}
