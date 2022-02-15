@@ -15,6 +15,7 @@ import (
 	"github.com/go-redsync/redsync/v4/redis/goredis/v8"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 func GetStudentCourse(c *gin.Context) {
@@ -75,11 +76,12 @@ func GetStudentCourse(c *gin.Context) {
 			return
 		}
 		//课程列表写入redis
-		for courseID := range courseIDs {
-			cli.SAdd(ctx, key, courseID)
-		}
+		//for courseID := range courseIDs {
+		//	cli.SAdd(ctx, key, courseID)
+		//}
+		cli.SAdd(ctx, key, courseIDs)
 		//设置十分钟过期
-		cli.Expire(ctx, key, 600)
+		cli.Expire(ctx, key, 600*time.Second)
 	}
 
 	courseList := make([]types.TCourse, len(courseIDs))
