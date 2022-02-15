@@ -7,11 +7,9 @@ import (
 	"camp/repository"
 	"camp/types"
 	"context"
-	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
-	"gorm.io/gorm"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -31,14 +29,26 @@ func CreateMember(c *gin.Context) {
 	}
 
 	// 检验用户名是否存在
+	//db := mysql.GetDb()
+	//var member models.Member
+	//err := db.Where("username = ?", json.Username).Take(&member).Error
+	//if err == nil {
+	//	c.JSON(http.StatusOK, types.CreateMemberResponse{Code: types.UserHasExisted})
+	//	return
+	//} else if errors.Is(err, gorm.ErrRecordNotFound) == false {
+	//	c.JSON(http.StatusOK, types.CreateMemberResponse{Code: types.UnknownError})
+	//	return
+	//}
+
 	db := mysql.GetDb()
 	var member models.Member
-	err := db.Where("username = ?", json.Username).Take(&member).Error
-	if err == nil {
-		c.JSON(http.StatusOK, types.CreateMemberResponse{Code: types.UserHasExisted})
-		return
-	} else if errors.Is(err, gorm.ErrRecordNotFound) == false {
+	var count int64
+	if err := db.Model(&member).Where("username = ?", json.Username).Limit(1).Count(&count).Error; err != nil {
 		c.JSON(http.StatusOK, types.CreateMemberResponse{Code: types.UnknownError})
+		return
+	}
+	if count == 1 {
+		c.JSON(http.StatusOK, types.CreateMemberResponse{Code: types.UserHasExisted})
 		return
 	}
 
@@ -71,6 +81,7 @@ func CreateMember(c *gin.Context) {
 			return nil
 		})
 		if err != nil {
+
 		}
 	}
 

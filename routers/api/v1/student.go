@@ -11,15 +11,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 	"github.com/go-redsync/redsync/v4"
 	"github.com/go-redsync/redsync/v4/redis/goredis/v8"
 	"net/http"
 	"strconv"
-	"time"
 )
 
 func GetStudentCourse(c *gin.Context) {
-	//TODO: 登陆验证和权限验证
 
 	//参数校验
 	StudentID := c.Query("StudentID")
@@ -31,16 +30,26 @@ func GetStudentCourse(c *gin.Context) {
 
 	ctx := context.Background()
 	cli := myRedis.GetClient()
+
+	// 学生布隆过滤器
+	val, err := cli.Do(ctx, "BF.EXISTS", types.BStudentKey, studentID).Bool()
+	if err != nil {
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
+		return
+	} else if val == false {
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.StudentNotExisted})
+		return
+	}
+
 	db := mysql.GetDb()
 
 	//判断学生是否存在
 	//逻辑和抢课函数一致
-	val, err := cli.SIsMember(ctx, types.StudentKey, studentID).Result()
+	val, err = cli.SIsMember(ctx, types.StudentKey, studentID).Result()
 	if err != nil {
 		c.JSON(http.StatusOK, types.GetCourseResponse{Code: types.UnknownError})
 		return
-	}
-	if val == false {
+	} else if val == false {
 		if code := repository.GetBoolStudentById(studentID); code != types.OK {
 			c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: code})
 			return
@@ -51,17 +60,12 @@ func GetStudentCourse(c *gin.Context) {
 	//判断课程列表是否存在
 	key := fmt.Sprintf(types.StudentHasCourseKey, studentID)
 	var courseIDs []int64
-	n, err := cli.Exists(ctx, key).Result()
+	all, err := cli.SMembers(ctx, key).Result()
+
 	if err != nil {
 		c.JSON(http.StatusOK, types.GetCourseResponse{Code: types.UnknownError})
 		return
-	} else if n > 0 { //key存在于redis中
-		all, err := cli.SMembers(ctx, key).Result()
-		if err != nil {
-			c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.UnknownError})
-			return
-		}
-
+	} else if all != nil && len(all) > 0 { //key存在于redis中
 		for _, id := range all {
 			courseID, err := strconv.ParseInt(id, 10, 64)
 			if err != nil {
@@ -71,21 +75,22 @@ func GetStudentCourse(c *gin.Context) {
 			courseIDs = append(courseIDs, courseID)
 		}
 	} else {
-		var courseIDString []string
 		if err := db.Select("course_id").Where("student_id = ?", studentID).Model(&models.StudentCourse{}).Scan(&courseIDs).Error; err != nil {
 			c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.UnknownError})
 			return
 		}
-		//课程列表写入redis
-		for courseID := range courseIDs {
-			//courseIDString = append(courseIDString, fmt.Sprintf("%d", courseID))
-			courseIDString = append(courseIDString, strconv.FormatInt(64, courseID))
 
-			//cli.SAdd(ctx, key, courseID)
+		if courseIDs == nil || len(courseIDs) == 0 {
+			c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.StudentHasNoCourse})
+			return
 		}
-		cli.SAdd(ctx, key, courseIDString)
-		//设置十分钟过期
-		cli.Expire(ctx, key, 600*time.Second)
+
+		//课程列表写入redis
+		t := make([]interface{}, len(courseIDs))
+		for i, courseID := range courseIDs {
+			t[i] = courseID
+		}
+		cli.SAdd(ctx, key, t)
 	}
 
 	courseList := make([]types.TCourse, len(courseIDs))
@@ -279,7 +284,7 @@ func BookCourse(c *gin.Context) {
 			return
 		}
 	}
-
+	//  TODO：lua讨论
 	//  预扣减库存
 	stock, err := cli.Decr(ctx, fmt.Sprintf(types.CourseKey, courseId)).Result()
 	if err != nil {
@@ -297,7 +302,14 @@ func BookCourse(c *gin.Context) {
 		return
 	}
 
-	cli.SAdd(ctx, fmt.Sprintf(types.StudentHasCourseKey, studentID), courseId)
+	_, err = cli.Pipelined(ctx, func(pipe redis.Pipeliner) error {
+		pipe.SAdd(ctx, fmt.Sprintf(types.StudentHasCourseKey, studentID), courseId)
+		pipe.Do(ctx, "BF.ADD", types.BStudentHasCourseKey, fmt.Sprintf(types.StudentIDCourseIDKey, studentID, courseId))
+		return nil
+	})
+
+	if err != nil {
+	}
 
 	if _, err := mutex.UnlockContext(ctx); err != nil {
 	}
