@@ -216,7 +216,7 @@ func BookCourse(c *gin.Context) {
 	}
 
 	// 判断课程是否存在
-	_, err = cli.Get(ctx, fmt.Sprintf(types.CourseKey, courseId)).Result()
+	capRedis, err := cli.Get(ctx, fmt.Sprintf(types.CourseKey, courseId)).Result()
 	if err == myRedis.Nil {
 		var capCnt int
 		if code := repository.GetCapCourseById(courseId, &capCnt); code != types.OK {
@@ -227,6 +227,12 @@ func BookCourse(c *gin.Context) {
 	} else if err != nil {
 		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
 		return
+	} else {
+		capCnt, _ := strconv.ParseInt(capRedis, 10, 64)
+		if capCnt <= 0 {
+			c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.CourseNotAvailable})
+			return
+		}
 	}
 
 	// 申请锁
