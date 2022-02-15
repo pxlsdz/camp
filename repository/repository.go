@@ -70,22 +70,18 @@ func GetTCourseByID(id int64, tCourse *types.TCourse) types.ErrNo {
 	ctx := context.Background()
 	client := redis.GetClient()
 	db := mysql.GetDb()
-
+	//转化为redis中对应的key
 	key := fmt.Sprintf(types.TCourseKey, id)
 
-	n, err1 := client.Exists(ctx, key).Result()
-	if err1 != nil {
+	//从redis中获取hmap，会返回一个map集合
+	val, err := client.HGetAll(ctx, key).Result()
+	// 判断查询是否出错
+	if err != nil {
 		return types.UnknownError
-	} else if n > 0 { //key存在于redis中
-		val, err := client.HGetAll(ctx, key).Result()
-		// 判断查询是否出错
-		if err != nil {
-			return types.UnknownError
-		} else {
-			tCourse.CourseID = fmt.Sprintf("%d", id)
-			tCourse.TeacherID = val["TeacherID"]
-			tCourse.Name = val["Name"]
-		}
+	} else if len(val) != 0 { //如果集合里面有元素，则该键存在于redis中
+		tCourse.CourseID = fmt.Sprintf("%d", id)
+		tCourse.TeacherID = val["TeacherID"]
+		tCourse.Name = val["Name"]
 	} else { //key不存在于redis中
 
 		var course models.Course
