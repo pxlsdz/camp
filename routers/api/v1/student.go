@@ -71,15 +71,19 @@ func GetStudentCourse(c *gin.Context) {
 			courseIDs = append(courseIDs, courseID)
 		}
 	} else {
+		var courseIDString []string
 		if err := db.Select("course_id").Where("student_id = ?", studentID).Model(&models.StudentCourse{}).Scan(&courseIDs).Error; err != nil {
 			c.JSON(http.StatusOK, types.GetStudentCourseResponse{Code: types.UnknownError})
 			return
 		}
 		//课程列表写入redis
-		//for courseID := range courseIDs {
-		//	cli.SAdd(ctx, key, courseID)
-		//}
-		cli.SAdd(ctx, key, courseIDs)
+		for courseID := range courseIDs {
+			//courseIDString = append(courseIDString, fmt.Sprintf("%d", courseID))
+			courseIDString = append(courseIDString, strconv.FormatInt(64, courseID))
+
+			//cli.SAdd(ctx, key, courseID)
+		}
+		cli.SAdd(ctx, key, courseIDString)
 		//设置十分钟过期
 		cli.Expire(ctx, key, 600*time.Second)
 	}
@@ -188,12 +192,12 @@ func BookCourse(c *gin.Context) {
 	// 判断课程是否存在
 	_, err = cli.Get(ctx, fmt.Sprintf(types.CourseKey, courseId)).Result()
 	if err == myRedis.Nil {
-		var cap int
-		if code := repository.GetCapCourseById(courseId, &cap); code != types.OK {
+		var capCnt int
+		if code := repository.GetCapCourseById(courseId, &capCnt); code != types.OK {
 			c.JSON(http.StatusOK, types.BookCourseResponse{Code: code})
 			return
 		}
-		cli.Set(ctx, fmt.Sprintf(types.CourseKey, courseId), cap, -1)
+		cli.Set(ctx, fmt.Sprintf(types.CourseKey, courseId), capCnt, -1)
 	} else if err != nil {
 		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
 		return
