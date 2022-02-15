@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"gorm.io/gorm"
+	"time"
 )
 
 // GetBoolStudentById 判断学生是否存在、是否删除
@@ -103,7 +104,7 @@ func GetTCourseByID(id int64, tCourse *types.TCourse) types.ErrNo {
 			"Name":      course.Name,
 			"TeacherID": course.TeacherID,
 		})
-		client.Expire(ctx, key, 600)
+		client.Expire(ctx, key, 600*time.Second)
 
 		tCourse.CourseID = fmt.Sprintf("%d", id)
 		tCourse.TeacherID = fmt.Sprintf("%d", course.TeacherID)

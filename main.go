@@ -65,7 +65,9 @@ func initCourseCap() {
 
 	pipe := cli.Pipeline()
 	for _, course := range courses {
-		pipe.Set(ctx, fmt.Sprintf(types.CourseKey, course.ID), course.Cap, -1)
+		pipe.Set(ctx, fmt.Sprintf(types.CourseKey, course.ID), course.Cap, types.RedisWriteExpiration)
+		// 加入课程布隆过滤器
+		pipe.Do(ctx, "BF.ADD", types.BCourseKey, course.ID)
 	}
 
 	// 导入mysql选课记录
@@ -77,6 +79,8 @@ func initCourseCap() {
 	s2c := make(map[int64][]interface{})
 	for _, studentCourses := range studentCourses {
 		s2c[studentCourses.StudentID] = append(s2c[studentCourses.StudentID], studentCourses.CourseID)
+		// 加入选课记录布隆过滤器
+		pipe.Do(ctx, "BF.ADD", types.BStudentHasCourseKey, fmt.Sprintf(types.StudentIDCourseIDKey, studentCourses.StudentID, studentCourses.CourseID))
 	}
 	for k, v := range s2c {
 		pipe.SAdd(ctx, fmt.Sprintf(types.StudentHasCourseKey, k), v)
@@ -90,6 +94,8 @@ func initCourseCap() {
 	t := make([]interface{}, len(studentIDs))
 	for i, v := range studentIDs {
 		t[i] = v
+		// 加入学生布隆过滤器
+		pipe.Do(ctx, "BF.ADD", types.BStudentKey, v)
 	}
 	pipe.SAdd(ctx, types.StudentKey, t)
 

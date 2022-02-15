@@ -166,11 +166,32 @@ func BookCourse(c *gin.Context) {
 
 	ctx := context.Background()
 	cli := myRedis.GetClient()
+
+	// 学生布隆过滤器
+	val, err := cli.Do(ctx, "BF.EXISTS", types.BStudentKey, studentID).Bool()
+	if err != nil {
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
+		return
+	} else if val == false {
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.StudentNotExisted})
+		return
+	}
+
+	// 课程布隆过滤器
+	val, err = cli.Do(ctx, "BF.EXISTS", types.BCourseKey, courseId).Bool()
+	if err != nil {
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
+		return
+	} else if val == false {
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.CourseNotExisted})
+		return
+	}
+
 	db := mysql.GetDb()
 
 	// 被删除的用户一直攻击 需要做特殊出来，缓存
 	// 判断学生是否存在
-	val, err := cli.SIsMember(ctx, types.StudentKey, studentID).Result()
+	val, err = cli.SIsMember(ctx, types.StudentKey, studentID).Result()
 	if err != nil {
 		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
 		return
@@ -197,56 +218,60 @@ func BookCourse(c *gin.Context) {
 		return
 	}
 
+	// 申请锁
 	pool := goredis.NewPool(cli)
 	rs := redsync.New(pool)
 
-	mutex := rs.NewMutex(fmt.Sprintf("%d:%d", studentID, courseId))
+	key := fmt.Sprintf(types.StudentIDCourseIDKey, studentID, courseId)
+	mutex := rs.NewMutex(key)
 
 	if err := mutex.LockContext(ctx); err != nil {
 		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
 		return
 	}
-	// 标志学生是否含有该课程
-	flag := false
-	// TODO: 布隆过滤器
-	value, err := cli.Exists(ctx, fmt.Sprintf(types.StudentHasCourseKey, studentID)).Result()
+
+	// 选课记录布隆过滤器
+	val, err = cli.Do(ctx, "BF.EXISTS", types.BStudentHasCourseKey, key).Bool()
 	if err != nil {
-		if _, err := mutex.UnlockContext(ctx); err != nil {
-		}
 		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
 		return
-	} else if value == 0 {
-		// 导入mysql学生选课记录
-		var courseIDs []int64
-		if err := db.Select("course_id").Where("student_id = ?", studentID).Model(&models.StudentCourse{}).Scan(&courseIDs).Error; err != nil {
+	} else if val == true {
+		// 标志学生是否含有该课程
+		flag := false
+		val, err = cli.SIsMember(ctx, fmt.Sprintf(types.StudentHasCourseKey, studentID), courseId).Result()
+		if err != nil {
 			if _, err := mutex.UnlockContext(ctx); err != nil {
 			}
 			c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
 			return
-		}
-		if courseIDs != nil && len(courseIDs) == 0 {
-			t := make([]interface{}, len(courseIDs))
-			for i, v := range courseIDs {
-				if v == courseId {
-					flag = true
+		} else if val == false {
+			// 导入mysql学生选课记录
+			var courseIDs []int64
+			if err := db.Select("course_id").Where("student_id = ?", studentID).Model(&models.StudentCourse{}).Scan(&courseIDs).Error; err != nil {
+				if _, err := mutex.UnlockContext(ctx); err != nil {
 				}
-				t[i] = v
+				c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
+				return
 			}
-			cli.SAdd(ctx, types.StudentKey, t)
+			if courseIDs != nil && len(courseIDs) > 0 {
+				t := make([]interface{}, len(courseIDs))
+				for i, v := range courseIDs {
+					if v == courseId {
+						flag = true
+					}
+					t[i] = v
+				}
+				cli.SAdd(ctx, types.StudentKey, t)
+			}
 		} else {
-			// TODO: 布隆过滤器
-		}
-	} else {
-		// 学生 已经有该课程
-		if cli.SIsMember(ctx, fmt.Sprintf(types.StudentHasCourseKey, studentID), courseId).Val() {
 			flag = true
 		}
-	}
-	if flag {
-		if _, err := mutex.UnlockContext(ctx); err != nil {
+		if flag {
+			if _, err := mutex.UnlockContext(ctx); err != nil {
+			}
+			c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.StudentHasCourse})
+			return
 		}
-		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.StudentHasCourse})
-		return
 	}
 
 	//  预扣减库存

@@ -1,5 +1,7 @@
 package types
 
+import "time"
+
 // 说明：
 // 1. 所提到的「位数」均以字节长度为准
 // 2. 所有的 ID 均为 int64（以 string 方式表现）
@@ -28,10 +30,15 @@ const (
 	UnknownError ErrNo = 255 // 未知错误
 )
 const (
-	StudentKey          = "s"
-	CourseKey           = "c%d"
-	StudentHasCourseKey = "sc%d"
-	TCourseKey          = "cc%d"
+	StudentKey           = "s"
+	CourseKey            = "c%d"
+	StudentHasCourseKey  = "sc%d"
+	TCourseKey           = "cc%d"
+	StudentIDCourseIDKey = "%d:%d"
+	BStudentKey          = "bs"
+	BCourseKey           = "bc"
+	BStudentHasCourseKey = "bsc"
+	RedisWriteExpiration = 3600 * time.Second
 )
 
 type ResponseMeta struct {

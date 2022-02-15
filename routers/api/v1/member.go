@@ -3,15 +3,15 @@ package v1
 import (
 	"camp/infrastructure/stores/myRedis"
 	"camp/infrastructure/stores/mysql"
-	"errors"
-	"gorm.io/gorm"
-
 	"camp/models"
 	"camp/repository"
 	"camp/types"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
+	"gorm.io/gorm"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -65,8 +65,13 @@ func CreateMember(c *gin.Context) {
 	if member.UserType == types.Student {
 		cli := myRedis.GetClient()
 		ctx := context.Background()
-		cli.SAdd(ctx, fmt.Sprintf(types.StudentKey), member.ID)
-
+		_, err := cli.Pipelined(ctx, func(pipe redis.Pipeliner) error {
+			pipe.SAdd(ctx, types.StudentKey, member.ID)
+			pipe.Do(ctx, "BF.ADD", types.BStudentKey, member.ID)
+			return nil
+		})
+		if err != nil {
+		}
 	}
 
 	c.JSON(http.StatusOK, types.CreateMemberResponse{

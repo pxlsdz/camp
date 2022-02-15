@@ -5,7 +5,6 @@ import (
 	"github.com/spf13/viper"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
 var db *gorm.DB
@@ -20,9 +19,9 @@ func Init() error {
 	}
 	dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", cfgVals...)
 
-	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
-	})
+	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	//Logger: logger.Default.LogMode(logger.Info),
+
 	return err
 }
 
