@@ -169,11 +169,16 @@ func (r *RabbitMQ) ConsumeSimple() {
 			db := mysql.GetDb()
 
 			// 创建选课记录
-			db.Create(&studentCourse)
-
-			// 扣除课程数量
-			course := models.Course{ID: studentCourse.CourseID}
-			db.Model(&course).UpdateColumn("cap", gorm.Expr("cap - ?", 1))
+			result := db.Create(&studentCourse)
+			if result.Error == nil {
+				// 扣除课程数量
+				course := models.Course{ID: studentCourse.CourseID}
+				db.Model(&course).UpdateColumn("cap", gorm.Expr("cap - ?", 1))
+			} else {
+				//TODO: 需要对应缓存库存加1
+				fmt.Println("插入选课记录失败")
+				fmt.Println(result.Error)
+			}
 
 			//如果为true表示确认所有未确认的消息，
 			//为false表示确认当前消息
