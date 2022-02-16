@@ -40,17 +40,27 @@ var script string = `
 func Init() error {
 	addr := viper.GetString("redis.addr")
 	password := viper.GetString("redis.password")
+
+	cli = redis.NewClient(&redis.Options{
+		//Network:      "unix",
+		Addr:         addr,
+		Password:     password,
+		DB:           0,
+		MinIdleConns: 16,                //空闲连接数
+		MaxConnAge:   300 * time.Second, //空闲5分钟后关闭连接
+		PoolSize:     1000,              //最大连接数
+	})
 	//cli = redis.NewClient(&redis.Options{
 	//	Addr:     addr,
 	//	Password: password,
 	//	DB:       0,
 	//})
-	cli = redis.NewClient(&redis.Options{
-		Network:  "unix",
-		Addr:     addr,
-		Password: password,
-		DB:       0,
-	})
+	//cli = redis.NewClient(&redis.Options{
+	//	Network:  "unix",
+	//	Addr:     addr,
+	//	Password: password,
+	//	DB:       0,
+	//})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

@@ -1,11 +1,14 @@
 package v1
 
 import (
+	"camp/infrastructure/stores/myRedis"
 	"camp/infrastructure/stores/mysql"
 	"camp/models"
 	"camp/repository"
 	"camp/types"
+	"context"
 	"errors"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"net/http"
@@ -18,6 +21,17 @@ func BindCourse(c *gin.Context) {
 	var json types.BindCourseRequest
 	if err := c.ShouldBindJSON(&json); err != nil {
 		c.JSON(http.StatusOK, types.BindCourseResponse{Code: types.ParamInvalid})
+		return
+	}
+	courseID, err := strconv.ParseInt(json.CourseID, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.ParamInvalid})
+		return
+	}
+
+	teacherID, err := strconv.ParseInt(json.TeacherID, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.ParamInvalid})
 		return
 	}
 
@@ -34,7 +48,7 @@ func BindCourse(c *gin.Context) {
 
 	var course models.Course
 	//找不到course
-	if err := db.Take(&course, json.CourseID).Error; err != nil {
+	if err := db.Take(&course, courseID).Error; err != nil {
 		// 判断课程是否存在
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusOK, types.BindCourseResponse{Code: types.CourseNotExisted})
@@ -50,15 +64,18 @@ func BindCourse(c *gin.Context) {
 		return
 	}
 
-	//将传入的string类型转成int64
-	teacher_id, _ := strconv.ParseInt(json.TeacherID, 10, 64)
+	update := db.Model(&course).Update("teacher_id", teacherID)
 
-	update := db.Model(&course).Update("teacher_id", teacher_id)
 	if update.Error == nil {
 		c.JSON(http.StatusOK, types.BindCourseResponse{Code: types.OK})
 	} else {
 		c.JSON(http.StatusOK, types.BindCourseResponse{Code: types.UnknownError})
 	}
+
+	ctx := context.Background()
+	cli := myRedis.GetClient()
+	cli.Del(ctx, fmt.Sprintf(types.StudentHasCourseKey, courseID))
+
 	return
 }
 
@@ -71,13 +88,23 @@ func UnbindCourse(c *gin.Context) {
 		return
 	}
 
+	courseID, err := strconv.ParseInt(json.CourseID, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.ParamInvalid})
+		return
+	}
+
+	teacherID, err := strconv.ParseInt(json.TeacherID, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.ParamInvalid})
+		return
+	}
+
 	db := mysql.GetDb()
 
 	var teacher models.Member
-	TeacherId, _ := strconv.ParseInt(json.TeacherID, 10, 64)
-
 	//端正老哥的api接口
-	errNo := repository.GetMemberById(TeacherId, &teacher)
+	errNo := repository.GetMemberById(teacherID, &teacher)
 	if errNo != types.OK {
 		c.JSON(http.StatusOK, types.BindCourseResponse{Code: errNo})
 		return
@@ -87,7 +114,7 @@ func UnbindCourse(c *gin.Context) {
 	}
 
 	var course models.Course
-	if err := db.Take(&course, json.CourseID).Error; err != nil {
+	if err := db.Take(&course, courseID).Error; err != nil {
 		// 判断课程是否存在
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusOK, types.BindCourseResponse{Code: types.CourseNotExisted})
@@ -103,11 +130,8 @@ func UnbindCourse(c *gin.Context) {
 		return
 	}
 
-	//将传入的string类型转成int64
-	teacher_id, _ := strconv.ParseInt(json.TeacherID, 10, 64)
-
 	//传入teacherid与表中不同，没有操作权限
-	if course.TeacherID != teacher_id {
+	if course.TeacherID != teacherID {
 		c.JSON(http.StatusOK, types.UnbindCourseResponse{Code: types.PermDenied})
 		return
 	}
@@ -119,6 +143,11 @@ func UnbindCourse(c *gin.Context) {
 	} else {
 		c.JSON(http.StatusOK, types.UnbindCourseResponse{Code: types.UnknownError})
 	}
+
+	ctx := context.Background()
+	cli := myRedis.GetClient()
+	cli.Del(ctx, fmt.Sprintf(types.StudentHasCourseKey, courseID))
+
 	return
 }
 

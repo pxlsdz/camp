@@ -33,6 +33,7 @@ const (
 	StudentKey           = "s"
 	CourseKey            = "c%d"
 	StudentHasCourseKey  = "sc%d"
+	StudentHCourseKey    = "%dh%d"
 	TCourseKey           = "cc%d"
 	StudentIDCourseIDKey = "%d:%d"
 	BStudentKey          = "bs"

@@ -75,14 +75,11 @@ func CreateMember(c *gin.Context) {
 	if member.UserType == types.Student {
 		cli := myRedis.GetClient()
 		ctx := context.Background()
-		_, err := cli.Pipelined(ctx, func(pipe redis.Pipeliner) error {
+		cli.Pipelined(ctx, func(pipe redis.Pipeliner) error {
 			pipe.SAdd(ctx, types.StudentKey, member.ID)
 			pipe.Do(ctx, "BF.ADD", types.BStudentKey, member.ID)
 			return nil
 		})
-		if err != nil {
-
-		}
 	}
 
 	c.JSON(http.StatusOK, types.CreateMemberResponse{

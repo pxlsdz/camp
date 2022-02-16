@@ -7,6 +7,13 @@ import (
 )
 
 func RegisterRouter(r *gin.Engine) {
+	// 测试并发
+	r.GET("/ping", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"message": "pong",
+		})
+	})
+
 	// 登录
 	auth := r.Group("/api/v1/auth")
 

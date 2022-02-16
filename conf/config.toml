@@ -4,7 +4,7 @@
     password = "Bytecamp$21zu"
     database = "camp"
 [redis]
-    addr = "/var/run/redis/redis.sock"
+    addr = "180.184.74.13:6565"
     password = "21zu$Redis"
 [rabbitMQ]
     addr = "180.184.74.13:5672"

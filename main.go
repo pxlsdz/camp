@@ -17,6 +17,8 @@ import (
 )
 
 func main() {
+	gin.SetMode(gin.ReleaseMode)
+
 	// 读取配置文件
 	initConfig()
 	// Read()
@@ -32,9 +34,15 @@ func main() {
 
 	initCourseCap()
 
-	simple := rabbitmq.NewRabbitMQSimple("miaosha")
-	simple.ConsumeSimple()
-	defer simple.Destory()
+	// 消费者1
+	simple1 := rabbitmq.NewRabbitMQSimple("miaosha")
+	simple1.ConsumeSimple()
+	defer simple1.Destory()
+
+	// 消费者2
+	simple2 := rabbitmq.NewRabbitMQSimple("miaosha")
+	simple2.ConsumeSimple()
+	defer simple2.Destory()
 
 	//把user这个接头体注册进来，后面跨路由才可以获取到user数据
 	gob.Register(types.User{})
@@ -49,6 +57,7 @@ func main() {
 	routers.RegisterRouter(r)
 	// 2.监听端口，默认在8080
 	// Run("里面不指定端口号默认为8080")
+
 	r.Run(":80")
 }
 
