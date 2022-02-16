@@ -94,13 +94,15 @@ func GetStudentCourse(c *gin.Context) {
 		cli.SAdd(ctx, key, t)
 	}
 
-	courseList := make([]types.TCourse, len(courseIDs))
-	for i, id := range courseIDs {
-		repository.GetTCourseByID(id, &courseList[i])
-	}
+	//courseList := make([]types.TCourse, len(courseIDs))
+	//for i, id := range courseIDs {
+	//	repository.GetTCourseByID(id, &courseList[i])
+	//}
+
+	courseList, code := repository.GetTCourseByIDs(courseIDs)
 
 	c.JSON(http.StatusOK, types.GetStudentCourseResponse{
-		Code: types.OK,
+		Code: code,
 		Data: struct{ CourseList []types.TCourse }{CourseList: courseList},
 	})
 	//db := mysql.GetDb()
