@@ -25,17 +25,28 @@ func CreateCourse(c *gin.Context) {
 
 	db := mysql.GetDb()
 
-	//TeacherID is Null
-	course := models.Course{
+	//如果cap小于0， 返回参数不合法
+	if json.Cap < 0 {
+		c.JSON(http.StatusOK, types.CreateCourseResponse{Code: types.ParamInvalid})
+		return
+	}
+	var course models.Course
+	var count int64
+	if err := db.Model(&course).Where("name = ?", json.Name).Limit(1).Count(&count).Error; err != nil {
+		c.JSON(http.StatusOK, types.CreateCourseResponse{Code: types.UnknownError})
+		return
+	}
+	if count == 1 {
+		c.JSON(http.StatusOK, types.CreateCourseResponse{Code: types.UnknownError})
+		return
+	}
+
+	course = models.Course{
 		Name:    json.Name,
 		Cap:     json.Cap,
 		Deleted: types.Default,
 	}
-	//如果cap小于0， 返回参数不合法
-	if course.Cap < 0 {
-		c.JSON(http.StatusOK, types.CreateCourseResponse{Code: types.ParamInvalid})
-		return
-	}
+
 	if err := db.Create(&course).Error; err != nil {
 		c.JSON(http.StatusOK, types.CreateCourseResponse{Code: types.UnknownError})
 		return
@@ -69,6 +80,7 @@ func GetCourse(c *gin.Context) {
 
 	var course types.TCourse
 	code := repository.GetTCourseByID(id, &course)
+
 	c.JSON(http.StatusOK, types.GetCourseResponse{
 		Code: code,
 		Data: course,

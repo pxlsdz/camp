@@ -1,5 +1,5 @@
 [mysql]
-    addr = "180.184.74.13:3306"
+    addr = "127.0.0.1:3307"
     username = "root"
     password = "Bytecamp$21zu"
     database = "camp"
@@ -8,6 +8,6 @@
 #    addr = "180.184.74.13:6379"
     password = "21zu$Redis"
 [rabbitMQ]
-    addr = "180.184.74.13:5672"
+    addr = "127.0.0.1:5672"
     username = "guest"
     password = "guest"
