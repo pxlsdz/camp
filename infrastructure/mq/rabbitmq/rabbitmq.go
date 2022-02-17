@@ -4,6 +4,7 @@ import (
 	"camp/infrastructure/stores/mysql"
 	"camp/models"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/spf13/viper"
 	"github.com/streadway/amqp"
@@ -162,23 +163,24 @@ func (r *RabbitMQ) ConsumeSimple() {
 
 			log.Printf("Received a message: %s", d.Body)
 			studentCourse := &models.StudentCourse{}
-			err := json.Unmarshal([]byte(d.Body), studentCourse)
-			if err != nil {
-				fmt.Println(err)
-			}
+			json.Unmarshal([]byte(d.Body), studentCourse)
+
 			db := mysql.GetDb()
 			err = db.Transaction(func(tx *gorm.DB) error {
-				// 创建课程记录
+				// 扣除课程数量
+				course := models.Course{ID: studentCourse.CourseID}
+				result := tx.Model(&course).Where("cap > 0").UpdateColumn("cap", gorm.Expr("cap - ?", 1))
+				if result.Error != nil {
+					return result.Error
+				}
+				if result.RowsAffected == 0 {
+					return errors.New("无该课程或者库存不足")
+				}
 
+				// 创建课程记录
 				if err := tx.Create(&studentCourse).Error; err != nil {
 					return err
 				}
-				// 扣除课程数量
-				course := models.Course{ID: studentCourse.CourseID}
-				if err := tx.Model(&course).UpdateColumn("cap", gorm.Expr("cap - ?", 1)).Where("cap > 0").Error; err != nil {
-					return err
-				}
-
 				// 返回 nil 提交事务
 				return nil
 			})

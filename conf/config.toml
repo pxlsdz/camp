@@ -1,5 +1,6 @@
 [mysql]
-    addr = "127.0.0.1:3307"
+#    addr = "127.0.0.1:3307"
+    addr = "/var/run/mysqld/mysqld.sock"
     username = "root"
     password = "Bytecamp$21zu"
     database = "camp"

@@ -34,7 +34,7 @@ func Init() error {
 	for _, cfg := range cfgs {
 		cfgVals = append(cfgVals, viper.GetString("mysql."+cfg))
 	}
-	dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", cfgVals...)
+	dsn := fmt.Sprintf("%s:%s@unix(%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", cfgVals...)
 
 	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	//Logger: logger.Default.LogMode(logger.Info),
