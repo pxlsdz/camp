@@ -1,6 +1,7 @@
 package main
 
 import (
+	"camp/infrastructure/goCache"
 	"camp/infrastructure/mq/rabbitmq"
 	"camp/infrastructure/stores/myRedis"
 	"camp/infrastructure/stores/mysql"
@@ -33,6 +34,8 @@ func main() {
 	}
 
 	initCourseCap()
+
+	goCache.Init()
 
 	// 消费者1
 	simple1 := rabbitmq.NewRabbitMQSimple("miaosha")

@@ -4,7 +4,7 @@
     password = "Bytecamp$21zu"
     database = "camp"
 [redis]
-    addr = "180.184.74.13:6565"
+    addr = "180.184.74.13:6379"
     password = "21zu$Redis"
 [rabbitMQ]
     addr = "180.184.74.13:5672"

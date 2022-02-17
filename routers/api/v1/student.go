@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"camp/infrastructure/goCache"
 	"camp/infrastructure/mq/rabbitmq"
 	"camp/infrastructure/stores/myRedis"
 	"camp/infrastructure/stores/mysql"
@@ -172,11 +173,12 @@ func BookCourse(c *gin.Context) {
 		return
 	}
 
-	//_, ok := localCapOverMap[courseId]
-	//if ok {
-	//	c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.CourseNotAvailable})
-	//	return
-	//}
+	cache := goCache.GetCache()
+	_, err = cache.Get([]byte(requestJson.CourseID))
+	if err == nil {
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.CourseNotAvailable})
+		return
+	}
 
 	ctx := context.Background()
 	cli := myRedis.GetClient()
@@ -233,6 +235,7 @@ func BookCourse(c *gin.Context) {
 	} else {
 		capCnt, _ := strconv.ParseInt(capRedis, 10, 64)
 		if capCnt <= 0 {
+			cache.Set([]byte(requestJson.CourseID), []byte("1"), 3600)
 			c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.CourseNotAvailable})
 			return
 		}
@@ -302,7 +305,9 @@ func BookCourse(c *gin.Context) {
 
 	if stock < 0 {
 		if _, err := mutex.UnlockContext(ctx); err != nil {
+
 		}
+		cache.Set([]byte(requestJson.CourseID), []byte("1"), 3600)
 		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.CourseNotAvailable})
 		return
 	}
@@ -316,6 +321,9 @@ func BookCourse(c *gin.Context) {
 	})
 
 	if err != nil {
+		cli.Incr(ctx, fmt.Sprintf(types.CourseKey, courseID))
+		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
+		return
 	}
 
 	if _, err := mutex.UnlockContext(ctx); err != nil {
@@ -330,9 +338,7 @@ func BookCourse(c *gin.Context) {
 	}
 	//类型转化
 	byteMessage, _ := json.Marshal(studentCourse)
-	//if err != nil {
-	//
-	//}
+
 	rabbitMQ := rabbitmq.GetRabbitMQ()
 	err = rabbitMQ.PublishSimple(string(byteMessage))
 	//if err != nil {

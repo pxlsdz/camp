@@ -40,6 +40,8 @@ INSERT INTO member (username, password, nickname, user_type)
 VALUES ('JudgeAdmin', 'JudgePassword2022', '宋端正', 1),
        ('sdzsdz', 'JudgePassword2022', 'sdzsdz', 2);
 
-INSERT INTO course (name, cap)
-VALUES ('高数', 1000),
-       ('英语', 500);
+# INSERT INTO course (name, cap)
+# VALUES ('高数', 1000),
+#        ('英语', 500);
+
+truncate course

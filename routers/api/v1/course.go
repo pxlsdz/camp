@@ -7,6 +7,7 @@ import (
 	"camp/repository"
 	"camp/types"
 	"context"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"net/http"
@@ -43,8 +44,8 @@ func CreateCourse(c *gin.Context) {
 	cli := myRedis.GetClient()
 	ctx := context.Background()
 	cli.Pipelined(ctx, func(pipe redis.Pipeliner) error {
-		pipe.SAdd(ctx, types.StudentKey, course.ID)
-		pipe.Do(ctx, "BF.ADD", types.CourseKey, course.ID)
+		pipe.Set(ctx, fmt.Sprintf(types.CourseKey, course.ID), course.Cap, types.RedisWriteExpiration)
+		pipe.Do(ctx, "BF.ADD", types.BCourseKey, course.ID)
 		return nil
 	})
 
