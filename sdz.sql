@@ -37,8 +37,7 @@ CREATE TABLE student_course
 
 
 INSERT INTO member (username, password, nickname, user_type)
-VALUES ('JudgeAdmin', 'JudgePassword2022', '宋端正', 1),
-       ('sdzsdz', 'JudgePassword2022', 'sdzsdz', 2);
+VALUES ('JudgeAdmin', 'JudgePassword2022', '宋端正', 1);
 
 # INSERT INTO course (name, cap)
 # VALUES ('高数', 1000),

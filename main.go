@@ -33,7 +33,7 @@ func main() {
 		panic(err)
 	}
 
-	//initCourseCap()
+	initCourseCap()
 
 	goCache.Init()
 
@@ -109,7 +109,9 @@ func initCourseCap() {
 		// 加入学生布隆过滤器
 		pipe.Do(ctx, "BF.ADD", types.BStudentKey, v)
 	}
-	pipe.SAdd(ctx, types.StudentKey, t)
+	if studentIDs != nil && len(studentIDs) > 0 {
+		pipe.SAdd(ctx, types.StudentKey, t)
+	}
 
 	_, err := pipe.Exec(ctx)
 	if err != nil {

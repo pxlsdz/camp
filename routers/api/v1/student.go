@@ -100,6 +100,9 @@ func GetStudentCourse(c *gin.Context) {
 	//}
 
 	courseList, code := repository.GetTCourseByIDs(courseIDs)
+	if code != types.OK {
+		courseList = nil
+	}
 
 	c.JSON(http.StatusOK, types.GetStudentCourseResponse{
 		Code: code,
