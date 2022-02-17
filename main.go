@@ -33,7 +33,7 @@ func main() {
 		panic(err)
 	}
 
-	initCourseCap()
+	//initCourseCap()
 
 	goCache.Init()
 

@@ -17,7 +17,6 @@ import (
 	"github.com/go-redsync/redsync/v4/redis/goredis/v8"
 	"net/http"
 	"strconv"
-	"time"
 )
 
 func GetStudentCourse(c *gin.Context) {
@@ -246,7 +245,8 @@ func BookCourse(c *gin.Context) {
 	rs := redsync.New(pool)
 
 	key := fmt.Sprintf(types.StudentIDCourseIDKey, studentID, courseID)
-	mutex := rs.NewMutex(key)
+	lockKey := fmt.Sprintf(types.StudentLock, studentID)
+	mutex := rs.NewMutex(lockKey)
 
 	if err := mutex.LockContext(ctx); err != nil {
 		c.JSON(http.StatusOK, types.BookCourseResponse{Code: types.UnknownError})
@@ -314,8 +314,8 @@ func BookCourse(c *gin.Context) {
 
 	_, err = cli.Pipelined(ctx, func(pipe redis.Pipeliner) error {
 		// 删除课程缓存
-		pipe.SetNX(ctx, fmt.Sprintf(types.StudentHCourseKey, studentID, courseID), 1, 30*time.Second)
 		pipe.Del(ctx, fmt.Sprintf(types.StudentHasCourseKey, studentID))
+		pipe.SetNX(ctx, fmt.Sprintf(types.StudentHCourseKey, studentID, courseID), 1, types.RedisWriteExpiration)
 		pipe.Do(ctx, "BF.ADD", types.BStudentHasCourseKey, fmt.Sprintf(types.StudentIDCourseIDKey, studentID, courseID))
 		return nil
 	})

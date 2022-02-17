@@ -4,6 +4,7 @@ import (
 	"camp/middleware"
 	"camp/routers/api/v1"
 	"github.com/gin-gonic/gin"
+	"time"
 )
 
 func RegisterRouter(r *gin.Engine) {
@@ -45,7 +46,7 @@ func RegisterRouter(r *gin.Engine) {
 
 	student := r.Group("/api/v1/student")
 	// 抢课
-	student.POST("/book_course", v1.BookCourse)
-	student.GET("/course", v1.GetStudentCourse)
+	student.POST("/book_course", middleware.RateLimitMiddleware(1*time.Second, 200000, 100000), v1.BookCourse)
+	student.GET("/course", middleware.RateLimitMiddleware(1*time.Second, 200000, 100000), v1.GetStudentCourse)
 
 }

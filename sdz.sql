@@ -44,4 +44,4 @@ VALUES ('JudgeAdmin', 'JudgePassword2022', '宋端正', 1),
 # VALUES ('高数', 1000),
 #        ('英语', 500);
 
-truncate course
+# truncate course

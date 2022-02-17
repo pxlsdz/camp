@@ -36,10 +36,11 @@ const (
 	StudentHCourseKey    = "%dh%d"
 	TCourseKey           = "cc%d"
 	StudentIDCourseIDKey = "%d:%d"
+	StudentLock          = "%d"
 	BStudentKey          = "bs"
 	BCourseKey           = "bc"
 	BStudentHasCourseKey = "bsc"
-	RedisWriteExpiration = 3600 * time.Second
+	RedisWriteExpiration = 36000 * time.Second
 )
 
 type ResponseMeta struct {
