@@ -161,7 +161,7 @@ func (r *RabbitMQ) ConsumeSimple() {
 	go func() {
 		for d := range msgs {
 
-			log.Printf("Received a message: %s", d.Body)
+			//log.Printf("Received a message: %s", d.Body)
 			studentCourse := &models.StudentCourse{}
 			json.Unmarshal([]byte(d.Body), studentCourse)
 
@@ -184,9 +184,6 @@ func (r *RabbitMQ) ConsumeSimple() {
 				// 返回 nil 提交事务
 				return nil
 			})
-			if err != nil {
-				log.Printf("%v\n", err)
-			}
 			//如果为true表示确认所有未确认的消息，
 			//为false表示确认当前消息
 			d.Ack(false)
