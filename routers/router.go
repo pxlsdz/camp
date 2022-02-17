@@ -1,8 +1,11 @@
 package routers
 
 import (
+	"camp/infrastructure/mq/rabbitmq"
 	"camp/middleware"
+	"camp/models"
 	"camp/routers/api/v1"
+	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"time"
 )
@@ -48,5 +51,26 @@ func RegisterRouter(r *gin.Engine) {
 	// 抢课
 	student.POST("/book_course", middleware.RateLimitMiddleware(1*time.Second, 200000, 100000), v1.BookCourse)
 	student.GET("/course", middleware.RateLimitMiddleware(1*time.Second, 200000, 100000), v1.GetStudentCourse)
+
+	// 测试MQ
+	r.GET("/mq", func(c *gin.Context) {
+		// 消息队列减少课程数据库的库存以及创建数据库表
+		//创建消息体
+		for i := 1; i <= 10; i++ {
+			studentCourse := models.StudentCourse{
+				StudentID: int64(i),
+				CourseID:  10101,
+			}
+			//类型转化
+			byteMessage, _ := json.Marshal(studentCourse)
+
+			rabbitMQ := rabbitmq.GetRabbitMQ()
+			rabbitMQ.PublishSimple(string(byteMessage))
+		}
+
+		c.JSON(200, gin.H{
+			"message": "pong",
+		})
+	})
 
 }

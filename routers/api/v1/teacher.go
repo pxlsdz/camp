@@ -74,7 +74,7 @@ func BindCourse(c *gin.Context) {
 
 	ctx := context.Background()
 	cli := myRedis.GetClient()
-	cli.Del(ctx, fmt.Sprintf(types.StudentHasCourseKey, courseID))
+	cli.Del(ctx, fmt.Sprintf(types.TCourseKey, courseID))
 
 	return
 }
@@ -146,7 +146,7 @@ func UnbindCourse(c *gin.Context) {
 
 	ctx := context.Background()
 	cli := myRedis.GetClient()
-	cli.Del(ctx, fmt.Sprintf(types.StudentHasCourseKey, courseID))
+	cli.Del(ctx, fmt.Sprintf(types.TCourseKey, courseID))
 
 	return
 }
